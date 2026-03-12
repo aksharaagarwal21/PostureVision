@@ -2,25 +2,52 @@ let stage = "up";
 let reps = 0;
 let reachedBottom = false;
 
-export function countSquatRep(angle) {
-  let repChanged = false;
+let bottomFrameCount = 0;
+let lastRepTime = 0;
 
-  // Going down
-  if (angle < 120 && stage === "up") {
+const REP_COOLDOWN = 1000; // milliseconds
+
+export function countSquatRep(angle) {
+
+  let repChanged = false;
+  const now = Date.now();
+
+  // -----------------------------
+  // GOING DOWN
+  // -----------------------------
+  if (angle < 150 && stage === "up") {
     stage = "down";
   }
 
-  // Bottom of squat
-  if (angle < 90) {
-    reachedBottom = true;
+  // -----------------------------
+  // BOTTOM DETECTION
+  // -----------------------------
+  if (angle < 130) {
+    bottomFrameCount++;
+
+    if (bottomFrameCount > 3) {
+      reachedBottom = true;
+    }
+
+  } else {
+    bottomFrameCount = 0;
   }
 
-  // Coming back up and completing rep
-  if (angle > 165 && stage === "down" && reachedBottom) {
-    stage = "up";
+  // -----------------------------
+  // COMING BACK UP
+  // -----------------------------
+  if (
+    angle > 165 &&
+    stage === "down" &&
+    reachedBottom &&
+    now - lastRepTime > REP_COOLDOWN
+  ) {
+
     reps += 1;
-    repChanged = true;
+    stage = "up";
     reachedBottom = false;
+    repChanged = true;
+    lastRepTime = now;
   }
 
   return {
