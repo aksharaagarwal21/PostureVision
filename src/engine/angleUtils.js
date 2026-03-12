@@ -1,4 +1,5 @@
 export function calculateAngle(A, B, C) {
+
   const AB = {
     x: A.x - B.x,
     y: A.y - B.y
