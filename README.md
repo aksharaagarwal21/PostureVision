@@ -1,16 +1,25 @@
-# React + Vite
+# PostureVision
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A browser app that tracks your body through the webcam and gives live feedback on squat form.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- Real-time pose tracking with MediaPipe Pose
+- Joint angle calculation from body landmarks
+- Squat form feedback, such as leaning too far forward, knees too far forward, or going lower
+- Automatic squat rep counting
 
-## React Compiler
+Everything runs in the browser; no video is uploaded.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Tech stack
 
-## Expanding the ESLint configuration
+React · Vite · MediaPipe Pose · react-webcam
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Run locally
+
+```bash
+npm install
+npm run dev
+```
+
+Open the local URL and allow camera access.
