@@ -1,65 +1,83 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import WebcamView from "./WebcamView";
+import ExercisePicker from "./ExercisePicker";
 import StatsPanel from "./StatsPanel";
 import FeedbackPanel from "./FeedbackPanel";
 import RepHistory from "./RepHistory";
 import TrainingPanel from "./TrainingPanel";
 import { WorkoutSession, CLASS_LABELS } from "../engine/workoutSession";
 import { PoseClassifier } from "../engine/poseClassifier";
+import { getExercise } from "../engine/exercises";
+import { VoiceCoach, createBrowserSpeaker, stopSpeaking } from "../engine/voiceCoach";
 import { saveModel, loadModel, deleteModel } from "../engine/modelStore";
 import { POSE_MODELS } from "../pose/poseDetector";
 
-const CLASSIFIER_KEY = "classifier:squat";
-const SPEAK_COOLDOWN_MS = 4000;
+const modelKey = (exerciseId) => `classifier:${exerciseId}`;
 
-function createSession() {
-  const classifier = PoseClassifier.fromJSON(loadModel(CLASSIFIER_KEY)) ?? new PoseClassifier({ labels: CLASS_LABELS });
-  return new WorkoutSession({ exercise: "squat", classifier });
-}
-
-function speak(text) {
-  if (!("speechSynthesis" in window)) return;
-  window.speechSynthesis.cancel();
-  window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+function loadClassifier(exerciseId) {
+  return PoseClassifier.fromJSON(loadModel(modelKey(exerciseId))) ?? new PoseClassifier({ labels: CLASS_LABELS });
 }
 
 export default function WorkoutView() {
-  const [session] = useState(createSession);
+  const [exerciseId, setExerciseId] = useState("squat");
+  const [session] = useState(() => new WorkoutSession({ exercise: "squat", classifier: loadClassifier("squat") }));
+  const [coach] = useState(() => new VoiceCoach(createBrowserSpeaker()));
   const [state, setState] = useState(null);
   const [model, setModel] = useState("full");
   const [mirrored, setMirrored] = useState(true);
-  const [voice, setVoice] = useState(false);
+  const [voice, setVoice] = useState(true);
   const [requireClassifier, setRequireClassifier] = useState(false);
   const [detectorStatus, setDetectorStatus] = useState("");
-  const lastSpoken = useRef(0);
+  const voiceRef = useRef(voice);
 
-  const handleFrame = useCallback((next) => setState(next), []);
+  const exercise = getExercise(exerciseId);
 
-  // Voice coach: announce reps and the most important form error
   useEffect(() => {
-    if (!voice || !state) return;
-    const now = performance.now();
-    if (state.event?.type === "rep") {
-      speak(String(state.reps));
-      lastSpoken.current = now;
-      return;
-    }
-    const error = state.issues.find((i) => i.severity === "error");
-    if (error && now - lastSpoken.current > SPEAK_COOLDOWN_MS) {
-      speak(error.message.split(":")[0]);
-      lastSpoken.current = now;
-    }
-  }, [state, voice]);
+    voiceRef.current = voice;
+    if (!voice) stopSpeaking();
+  }, [voice]);
+
+  useEffect(() => () => stopSpeaking(), []);
+
+  // Called from the camera loop (throttled, but never drops rep events)
+  const handleFrame = useCallback(
+    (next) => {
+      setState(next);
+      if (voiceRef.current) coach.update(next, session.exercise, performance.now());
+    },
+    [coach, session]
+  );
+
+  function handleExerciseChange(id) {
+    if (id === exerciseId) return;
+    session.setExercise(id, loadClassifier(id));
+    session.setRequireClassifier(false);
+    setRequireClassifier(false);
+    setExerciseId(id);
+    setState(null);
+    if (voiceRef.current) coach.introduce(getExercise(id), performance.now());
+    else coach.reset();
+  }
+
+  function handleReset() {
+    session.reset();
+    coach.reset();
+  }
+
+  function handleRecalibrate() {
+    session.recalibrate();
+    coach.reset();
+  }
 
   const handleTrained = useCallback(() => {
-    saveModel(CLASSIFIER_KEY, session.classifier.toJSON());
+    saveModel(modelKey(session.exercise.id), session.classifier.toJSON());
   }, [session]);
 
   function handleClearTraining() {
     session.clearTraining();
     setRequireClassifier(false);
-    deleteModel(CLASSIFIER_KEY);
+    deleteModel(modelKey(exerciseId));
   }
 
   function handleRequireClassifier(value) {
@@ -70,6 +88,7 @@ export default function WorkoutView() {
   return (
     <div className="workout">
       <div className="stage">
+        <ExercisePicker value={exerciseId} onChange={handleExerciseChange} />
         <WebcamView
           session={session}
           model={model}
@@ -89,24 +108,26 @@ export default function WorkoutView() {
             </select>
           </label>
           <label className="toggle">
-            <input type="checkbox" checked={mirrored} onChange={(e) => setMirrored(e.target.checked)} />
-            Mirror
-          </label>
-          <label className="toggle">
             <input type="checkbox" checked={voice} onChange={(e) => setVoice(e.target.checked)} />
             Voice coach
           </label>
-          <button onClick={() => session.recalibrate()} className="secondary">Recalibrate</button>
-          <button onClick={() => session.reset()} className="secondary">Reset</button>
+          <label className="toggle">
+            <input type="checkbox" checked={mirrored} onChange={(e) => setMirrored(e.target.checked)} />
+            Mirror
+          </label>
+          <button onClick={handleRecalibrate} className="secondary">Recalibrate</button>
+          <button onClick={handleReset} className="secondary">Reset</button>
           <span className="muted small">{detectorStatus}</span>
         </div>
       </div>
 
       <aside className="sidebar">
-        <StatsPanel state={state} />
+        <StatsPanel state={state} exercise={exercise} />
         <FeedbackPanel state={state} />
-        <RepHistory history={state?.history} />
+        {exercise.kind === "reps" && <RepHistory history={state?.history} />}
         <TrainingPanel
+          key={exerciseId}
+          exercise={exercise}
           session={session}
           state={state}
           requireClassifier={requireClassifier}

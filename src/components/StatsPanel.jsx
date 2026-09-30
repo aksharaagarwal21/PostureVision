@@ -1,14 +1,8 @@
 const STATUS_TEXT = {
   no_person: "Step into the frame",
-  adjust: "Move back so your whole body, shoulders to ankles, is in view",
-  calibrating: "Stand tall and hold still to calibrate",
+  adjust: "Adjust your position so your whole body is in view",
+  calibrating: "Hold still in the start position to calibrate",
   active: null,
-};
-
-const PHASE_TEXT = {
-  standing: "Ready",
-  descending: "Going down",
-  ascending: "Coming up",
 };
 
 const VIEW_TEXT = {
@@ -24,7 +18,19 @@ function scoreClass(score) {
   return "error";
 }
 
-export default function StatsPanel({ state }) {
+function formatTime(ms) {
+  const total = Math.floor((ms ?? 0) / 1000);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+}
+
+function phaseText(state, exercise) {
+  if (state.kind === "hold") return state.hold?.holding ? "Holding" : "Get into position";
+  if (state.phase === "descending") return `Going to: ${exercise.labels.active.toLowerCase()}`;
+  if (state.phase === "ascending") return `Back to: ${exercise.labels.rest.toLowerCase()}`;
+  return "Ready";
+}
+
+export default function StatsPanel({ state, exercise }) {
   if (!state) {
     return (
       <section className="panel stats">
@@ -33,24 +39,47 @@ export default function StatsPanel({ state }) {
     );
   }
 
-  const statusText = STATUS_TEXT[state.status];
+  const isHold = state.kind === "hold";
+  const statusText = state.status === "active" ? null : state.message ?? STATUS_TEXT[state.status];
   const progress = state.status === "active" ? state.progress : 0;
+  const goodPct = isHold && state.hold.totalMs > 0
+    ? Math.round((100 * state.hold.goodFormMs) / state.hold.totalMs)
+    : null;
 
   return (
     <section className="panel stats">
       <div className="stat-row">
-        <div className="stat stat-reps">
-          <span className="stat-value">{state.reps}</span>
-          <span className="stat-label">Reps</span>
-        </div>
-        <div className={`stat ${scoreClass(state.formScore)}`}>
-          <span className="stat-value">{state.formScore ?? "–"}</span>
-          <span className="stat-label">Form score</span>
-        </div>
-        <div className="stat">
-          <span className="stat-value">{state.partialReps}</span>
-          <span className="stat-label">Not counted</span>
-        </div>
+        {isHold ? (
+          <>
+            <div className="stat stat-reps">
+              <span className="stat-value">{formatTime(state.hold.currentMs)}</span>
+              <span className="stat-label">Hold</span>
+            </div>
+            <div className={`stat ${scoreClass(state.formScore)}`}>
+              <span className="stat-value">{state.formScore ?? "–"}</span>
+              <span className="stat-label">Form score</span>
+            </div>
+            <div className="stat">
+              <span className="stat-value">{formatTime(state.hold.bestMs)}</span>
+              <span className="stat-label">Best hold</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="stat stat-reps">
+              <span className="stat-value">{state.reps}</span>
+              <span className="stat-label">Reps</span>
+            </div>
+            <div className={`stat ${scoreClass(state.formScore)}`}>
+              <span className="stat-value">{state.formScore ?? "–"}</span>
+              <span className="stat-label">Form score</span>
+            </div>
+            <div className="stat">
+              <span className="stat-value">{state.partialReps}</span>
+              <span className="stat-label">Not counted</span>
+            </div>
+          </>
+        )}
       </div>
 
       {statusText ? (
@@ -59,12 +88,14 @@ export default function StatsPanel({ state }) {
           {state.status === "calibrating" && ` (${Math.round(state.calibrationProgress * 100)}%)`}
         </p>
       ) : (
-        <p className="phase">{PHASE_TEXT[state.phase]}</p>
+        <p className="phase">{phaseText(state, exercise)}</p>
       )}
 
-      <div className="depth" aria-label="Squat depth">
-        <div className="depth-bar" style={{ width: `${Math.round(progress * 100)}%` }} />
-      </div>
+      {!isHold && (
+        <div className="depth" aria-label="Range of motion">
+          <div className="depth-bar" style={{ width: `${Math.round(progress * 100)}%` }} />
+        </div>
+      )}
 
       <dl className="meta">
         <div>
@@ -80,8 +111,8 @@ export default function StatsPanel({ state }) {
           <dd>{state.metrics ? (state.metrics.uses3D ? "3D" : "2D") : "–"} · {state.fps ?? 0} fps</dd>
         </div>
         <div>
-          <dt>Avg rep score</dt>
-          <dd>{state.averageFormScore ?? "–"}</dd>
+          <dt>{isHold ? "Good form time" : "Avg rep score"}</dt>
+          <dd>{isHold ? (goodPct === null ? "–" : `${goodPct}%`) : state.averageFormScore ?? "–"}</dd>
         </div>
       </dl>
     </section>

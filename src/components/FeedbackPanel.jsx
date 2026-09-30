@@ -8,7 +8,7 @@ export default function FeedbackPanel({ state }) {
       <h2>Form feedback</h2>
       {items.length === 0 ? (
         <p className="muted">
-          {state?.status === "active" ? "Looking good. Keep going!" : "Feedback appears once you start squatting."}
+          {state?.status === "active" ? "Looking good. Keep going!" : "Feedback appears once you start moving."}
         </p>
       ) : (
         <ul className="feedback">

@@ -3,12 +3,7 @@ import { useEffect, useRef, useState } from "react";
 const COUNTDOWN_S = 3;
 const RECORD_MS = 4000;
 
-const LABEL_HINTS = {
-  up: "Stand tall, then shift slightly and move your arms while recording",
-  down: "Hold the bottom of your squat; bob a little up and down while recording",
-};
-
-export default function TrainingPanel({ session, state, requireClassifier, onRequireClassifier, onTrained, onClear }) {
+export default function TrainingPanel({ exercise, session, state, requireClassifier, onRequireClassifier, onTrained, onClear }) {
   const [countdown, setCountdown] = useState(null);
   const [evaluation, setEvaluation] = useState(null);
   const timer = useRef(null);
@@ -56,28 +51,28 @@ export default function TrainingPanel({ session, state, requireClassifier, onReq
       <h2>Train on your body</h2>
       <p className="muted small">
         Record a few seconds of each position in your own space. The model learns your body and camera
-        setup and tunes the rep thresholds to your squat.
+        setup and tunes the rep thresholds to your {exercise.name.toLowerCase()}.
       </p>
 
       <div className="train-buttons">
         {["rest", "active"].map((label) => (
           <button key={label} onClick={() => record(label)} disabled={busy}>
-            Record {label.toUpperCase()} <span className="badge">{counts[label] ?? 0}</span>
+            Record: {exercise.labels[label]} <span className="badge">{counts[label] ?? 0}</span>
           </button>
         ))}
       </div>
 
       {countdown && (
         <p className="status-banner">
-          Get into the {countdown.label.toUpperCase()} position… {countdown.remaining}
+          Get into position: {exercise.labels[countdown.label].toLowerCase()}… {countdown.remaining}
           <br />
-          <span className="small">{LABEL_HINTS[countdown.label]}</span>
+          <span className="small">Hold it and move slightly while recording</span>
         </p>
       )}
       {recording && (
         <div className="recording">
           <span>
-            Recording {recording.label.toUpperCase()}: {recording.added} samples
+            Recording {exercise.labels[recording.label].toLowerCase()}: {recording.added} samples
           </span>
           <div className="depth">
             <div className="depth-bar recording-bar" style={{ width: `${Math.round(recording.progress * 100)}%` }} />
@@ -89,17 +84,20 @@ export default function TrainingPanel({ session, state, requireClassifier, onReq
         <>
           {prob && (
             <p className="small">
-              Live: rest {Math.round((prob.rest ?? 0) * 100)}% · active {Math.round((prob.active ?? 0) * 100)}%
+              Live: {exercise.labels.rest.toLowerCase()} {Math.round((prob.rest ?? 0) * 100)}% ·{" "}
+              {exercise.labels.active.toLowerCase()} {Math.round((prob.active ?? 0) * 100)}%
             </p>
           )}
-          <label className="toggle">
-            <input
-              type="checkbox"
-              checked={requireClassifier}
-              onChange={(e) => onRequireClassifier(e.target.checked)}
-            />
-            Only count reps the trained model confirms
-          </label>
+          {exercise.kind !== "hold" && (
+            <label className="toggle">
+              <input
+                type="checkbox"
+                checked={requireClassifier}
+                onChange={(e) => onRequireClassifier(e.target.checked)}
+              />
+              Only count reps the trained model confirms
+            </label>
+          )}
           <div className="train-buttons">
             <button onClick={evaluate} disabled={busy}>Test accuracy</button>
             <button onClick={onClear} disabled={busy} className="secondary">Clear training</button>
