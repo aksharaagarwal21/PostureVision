@@ -86,6 +86,44 @@ function frontPose({ ankleX = 0.12, upper, fore, lift = 0, dumbbells = false }) 
   return { view: "front", near: left, far: right, neck, head: [0, 1.7 + lift], dumbbells };
 }
 
+// Rotate a point around a pivot (degrees, positive = clockwise on screen)
+function rotate(p, pivot, deg) {
+  const a = -rad(deg);
+  const x = p[0] - pivot[0];
+  const y = p[1] - pivot[1];
+  return [pivot[0] + x * Math.cos(a) - y * Math.sin(a), pivot[1] + x * Math.sin(a) + y * Math.cos(a)];
+}
+
+// Foot hanging off a lifted leg; shinDeg is the knee -> ankle direction
+function hangingFoot(ankle, shinDeg) {
+  const forward = shinDeg - 90;
+  return {
+    heel: add(add(ankle, dir(forward, -0.05)), dir(shinDeg, 0.04)),
+    toe: add(add(ankle, dir(forward, 0.15)), dir(shinDeg, 0.06)),
+  };
+}
+
+// Jogging on the spot: far leg standing, near leg doing the work
+function jogPose(nearKneeDeg, nearShinDeg, t) {
+  const far = sideChain({
+    ankle: [0, 0.08], shin: 0, thigh: 0, torso: 3,
+    upper: lerp(180, 145, t), fore: lerp(180, 145, t) - 70,
+  });
+  const hip = far.hip;
+  const knee = add(hip, dir(nearKneeDeg, L.thigh));
+  const ankle = add(knee, dir(nearShinDeg, L.shin));
+  const upper = lerp(180, 212, t);
+  const elbow = add(far.shoulder, dir(upper, L.upper));
+  const near = {
+    hip, knee, ankle,
+    shoulder: far.shoulder,
+    elbow,
+    wrist: add(elbow, dir(upper - 70, L.fore)),
+    ...hangingFoot(ankle, nearShinDeg),
+  };
+  return sidePose(near, offset(far, -0.03), 3);
+}
+
 // --- Exercises -------------------------------------------------------------
 
 const POSES = {
@@ -209,6 +247,55 @@ const POSES = {
       neck,
       head: [neck[0] + along[0] * 0.13 + chest[0] * 0.03, neck[1] + along[1] * 0.13 + chest[1] * 0.03],
     };
+  },
+
+  high_knees(t) {
+    return jogPose(lerp(180, 88, t), lerp(180, 175, t), t);
+  },
+
+  butt_kicks(t) {
+    return jogPose(lerp(180, 190, t), lerp(180, 322, t), t);
+  },
+
+  arm_circles(t) {
+    const upper = 90 + 14 * Math.sin(2 * Math.PI * t);
+    return frontPose({ upper, fore: upper });
+  },
+
+  torso_twist(t) {
+    const twist = rad(lerp(-50, 50, t));
+    const pose = frontPose({ upper: 175, fore: 175 });
+    const wrist = [0.5 * Math.sin(twist), 1.3];
+    for (const [side, s] of [[pose.near, -1], [pose.far, 1]]) {
+      side.shoulder = [0.19 * s * Math.cos(twist), 1.5];
+      side.wrist = wrist;
+      side.elbow = add(lerpP(side.shoulder, wrist, 0.5), [0.05 * s, -0.12]);
+    }
+    return pose;
+  },
+
+  side_bend(t) {
+    const pose = frontPose({ upper: 175, fore: 175 });
+    // Top arm reaches up and over while the other slides down the leg
+    const topUpper = lerp(175, -5, t);
+    pose.near.elbow = add(pose.near.shoulder, dir(-topUpper, L.upper));
+    pose.near.wrist = add(pose.near.elbow, dir(-topUpper, L.fore));
+    const pivot = [0, 0.98];
+    const bend = 25 * t;
+    for (const side of [pose.near, pose.far]) {
+      for (const joint of ["shoulder", "elbow", "wrist"]) side[joint] = rotate(side[joint], pivot, bend);
+    }
+    pose.neck = rotate(pose.neck, pivot, bend);
+    pose.head = rotate(pose.head, pivot, bend);
+    return pose;
+  },
+
+  hip_hinge(t) {
+    const torso = 3 + 77 * t;
+    const near = sideChain({
+      ankle: [0, 0.08], shin: 6 * t, thigh: -4 - 14 * t, torso, upper: 180, fore: 180,
+    });
+    return sidePose(near, offset(near, -0.04), torso);
   },
 
   plank() {
