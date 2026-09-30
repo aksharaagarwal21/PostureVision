@@ -101,6 +101,66 @@ export const GUIDES = {
     ],
     tips: ["Don't let your hips sag or pike up", "Look at the floor to keep your neck neutral", "Keep breathing steadily"],
   },
+  high_knees: {
+    muscles: "Hip flexors, quads, calves, cardio",
+    steps: [
+      { t: 0, text: "Stand tall with your feet hip-width apart." },
+      { t: 0.5, text: "Start jogging on the spot, pumping your arms." },
+      { t: 1, text: "Drive each knee up to hip height." },
+      { t: 0, text: "Land softly on the balls of your feet and switch legs quickly." },
+    ],
+    tips: ["Stay tall, don't lean back", "Opposite arm to opposite knee", "March instead of jogging for low impact"],
+  },
+  butt_kicks: {
+    muscles: "Hamstrings, calves, cardio",
+    steps: [
+      { t: 0, text: "Stand tall with your feet hip-width apart." },
+      { t: 0.5, text: "Start jogging on the spot." },
+      { t: 1, text: "Kick each heel up towards your glutes, keeping your knees pointing down." },
+      { t: 0, text: "Switch legs quickly and keep a steady rhythm." },
+    ],
+    tips: ["Knees stay under your hips", "Stay light on your feet", "Swing your arms naturally"],
+  },
+  arm_circles: {
+    muscles: "Shoulders, upper back",
+    steps: [
+      { t: 0, text: "Stand tall and raise your arms straight out to the sides at shoulder height." },
+      { t: 0.25, text: "Make small forward circles with your hands." },
+      { t: 0.75, text: "Gradually make the circles bigger." },
+      { t: 0.5, text: "Halfway through, switch to backward circles." },
+    ],
+    tips: ["Keep your arms straight", "Relax your neck and shoulders", "Keep both arms at the same height"],
+  },
+  torso_twist: {
+    muscles: "Obliques, lower back, core",
+    steps: [
+      { t: 0.5, text: "Stand with your feet shoulder-width apart, hands together at chest height." },
+      { t: 0, text: "Rotate your upper body to one side, keeping your hips facing forward." },
+      { t: 1, text: "Rotate smoothly to the other side." },
+      { t: 0.5, text: "Keep twisting from side to side at a steady pace." },
+    ],
+    tips: ["Move from your waist, not your hips", "Stay tall", "Start slowly and build up the range"],
+  },
+  side_bend: {
+    muscles: "Obliques, lats",
+    steps: [
+      { t: 0, text: "Stand tall with your feet hip-width apart." },
+      { t: 0.5, text: "Raise one arm and start bending sideways the other way." },
+      { t: 1, text: "Reach over your head as your other hand slides down the side of your leg." },
+      { t: 0, text: "Come back up tall and repeat on the other side." },
+    ],
+    tips: ["Bend straight to the side, not forward", "Keep your hips still", "Breathe out as you bend"],
+  },
+  hip_hinge: {
+    muscles: "Hamstrings, glutes, lower back",
+    steps: [
+      { t: 0, text: "Stand tall with your feet hip-width apart and a soft bend in your knees." },
+      { t: 0.5, text: "Push your hips back as if closing a door behind you." },
+      { t: 1, text: "Let your chest tip forward with a flat back until you feel your hamstrings stretch." },
+      { t: 0, text: "Squeeze your glutes to stand back up tall." },
+    ],
+    tips: ["Keep your back flat", "Knees stay only slightly bent", "Move from your hips, not your lower back"],
+  },
 };
 
 export function getGuide(exerciseId) {
