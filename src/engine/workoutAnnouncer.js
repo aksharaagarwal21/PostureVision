@@ -18,7 +18,8 @@ export function announce(events) {
     switch (event.type) {
       case "get_ready":
         if (step.set === 1) {
-          say(`Get ready. ${name(step)}. ${step.totalSets} ${step.totalSets === 1 ? "set" : "sets"} of ${describeTarget(step)}.`, {
+          const intro = step.section === "warmup" && step.itemIndex === 0 ? "Let's warm up. " : "";
+          say(`${intro}Get ready. ${name(step)}. ${step.totalSets} ${step.totalSets === 1 ? "set" : "sets"} of ${describeTarget(step)}.`, {
             interrupt: true,
             queue: false,
           });
@@ -45,7 +46,10 @@ export function announce(events) {
 
       case "rest": {
         const previous = events.slice(0, i).reverse().find((e) => e.type === "set_complete")?.result;
-        let text = `Set complete. Rest ${event.durationSec} seconds.`;
+        const warmupDone = previous?.section === "warmup" && step.section === "main";
+        let text = warmupDone
+          ? `Warm-up done! Rest ${event.durationSec} seconds, then the main workout.`
+          : `Set complete. Rest ${event.durationSec} seconds.`;
         if (previous && previous.exerciseId !== step.exerciseId) {
           text += ` Next up: ${name(step)}, ${describeTarget(step)}.`;
         }

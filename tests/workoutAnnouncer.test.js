@@ -47,4 +47,18 @@ describe("workout announcements", () => {
       "Workout complete! Great job. You burned about 12 calories.",
     ]);
   });
+
+  it("starts the warm-up and marks when it's done", () => {
+    const warm = { exerciseId: "arm_circles", section: "warmup", itemIndex: 0, set: 1, totalSets: 1, targetType: "time", seconds: 30 };
+    expect(texts([{ type: "get_ready", step: warm }])).toEqual([
+      "Let's warm up. Get ready. Arm circles. 1 set of 30 seconds.",
+    ]);
+    const events = [
+      { type: "set_complete", result: { exerciseId: "high_knees", section: "warmup" } },
+      { type: "rest", step: { ...squatSet(1), section: "main" }, durationSec: 60 },
+    ];
+    expect(texts(events)).toEqual([
+      "Warm-up done! Rest 60 seconds, then the main workout. Next up: Squat, 12 reps.",
+    ]);
+  });
 });

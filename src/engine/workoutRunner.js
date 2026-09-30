@@ -138,6 +138,7 @@ export class WorkoutRunner {
     const live = this.live;
     const result = {
       exerciseId: step.exerciseId,
+      section: step.section ?? "main",
       set: step.set,
       totalSets: step.totalSets,
       targetType: step.targetType,
