@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0ea5e9"/>
+      <stop offset="1" stop-color="#0369a1"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- Figure in a squat, like the in-app demo -->
+  <g fill="none" stroke="#ffffff" stroke-width="34" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="176,392 224,304 150,262 214,178"/>
+    <polyline points="214,178 352,210"/>
+    <line x1="156" y1="392" x2="230" y2="392"/>
+  </g>
+  <circle cx="246" cy="126" r="40" fill="#ffffff"/>
+  <!-- Tracking dots on the joints -->
+  <g fill="#22c55e" stroke="#ffffff" stroke-width="8">
+    <circle cx="224" cy="304" r="20"/>
+    <circle cx="150" cy="262" r="20"/>
+  </g>
+</svg>
