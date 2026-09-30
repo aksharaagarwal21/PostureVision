@@ -1030,3 +1030,65 @@ input[type="number"] {
   color: #0b1120;
   font-weight: 600;
 }
+
+/* Install banner (phones) */
+
+.install-banner {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom));
+  z-index: 20;
+  max-width: 520px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.35);
+  animation: install-slide-up 0.3s ease-out;
+}
+
+.install-spacer {
+  height: 150px;
+}
+
+.install-icon {
+  flex: none;
+  border-radius: 11px;
+}
+
+.install-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.install-text p {
+  margin: 2px 0 0;
+}
+
+.install-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.inline-icon {
+  vertical-align: -3px;
+}
+
+@keyframes install-slide-up {
+  from {
+    transform: translateY(120%);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .install-banner {
+    animation: none;
+  }
+}
