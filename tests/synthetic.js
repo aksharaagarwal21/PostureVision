@@ -39,12 +39,16 @@ function buildSkeleton(depth, opts) {
     shin = 0.42,
     thigh = 0.44,
     torso = 0.5,
+    baseLean = 10,     // torso lean when standing, degrees
+    arms = null,       // { abduction, flexion, elbow, bend } in degrees
+    hipSag = 0,        // meters the hips drop towards the floor (plank/push-up)
+    pitch = 0,         // degrees the whole body tips forward (90 = horizontal)
   } = opts;
 
   const pts = Array.from({ length: 33 }, () => ({ f: 0, u: 0, l: 0 }));
   const shinTilt = 38 * depth * DEG;
   const knee = 175 - 95 * depth;
-  const lean = (10 + 35 * depth + extraLean * depth) * DEG;
+  const lean = (baseLean + 35 * depth + extraLean * depth) * DEG;
 
   for (const side of [1, -1]) {
     // side 1 = person's left
@@ -111,7 +115,69 @@ function buildSkeleton(depth, opts) {
   pts[7] = { f: head.f - 0.04, u: head.u, l: 0.08 };
   pts[8] = { f: head.f - 0.04, u: head.u, l: -0.08 };
 
+  if (arms) poseArms(pts, arms);
+  if (hipSag) {
+    // The front of the body faces the floor once pitched forward
+    pts[23].f += hipSag;
+    pts[24].f += hipSag;
+  }
+  if (pitch) tipForward(pts, pitch);
+
   return pts;
+}
+
+const add = (a, b, k = 1) => ({ f: a.f + b.f * k, u: a.u + b.u * k, l: a.l + b.l * k });
+const dot = (a, b) => a.f * b.f + a.u * b.u + a.l * b.l;
+const unit = (a) => {
+  const n = Math.hypot(a.f, a.u, a.l) || 1;
+  return { f: a.f / n, u: a.u / n, l: a.l / n };
+};
+
+// abduction: arm out to the side (0 = down, 90 = shoulder height, 180 = up)
+// flexion: arm forward; elbow: bend (0 = straight); bend: "forward" or "up"
+function poseArms(pts, { abduction = 10, flexion = 0, elbow = 10, bend = "forward" }) {
+  const a = abduction * DEG;
+  const fl = flexion * DEG;
+  const e = elbow * DEG;
+  for (const side of [1, -1]) {
+    const [sh, el, wr] = side === 1 ? [11, 13, 15] : [12, 14, 16];
+    const upper = unit({
+      f: Math.sin(fl),
+      u: -Math.cos(fl) * Math.cos(a),
+      l: side * Math.cos(fl) * Math.sin(a),
+    });
+    let pref = bend === "up" ? { f: 0, u: 1, l: 0 } : { f: 1, u: 0, l: 0 };
+    let perp = add(pref, upper, -dot(pref, upper));
+    if (Math.hypot(perp.f, perp.u, perp.l) < 1e-3) {
+      pref = bend === "up" ? { f: 1, u: 0, l: 0 } : { f: 0, u: 1, l: 0 };
+      perp = add(pref, upper, -dot(pref, upper));
+    }
+    perp = unit(perp);
+    const fore = unit(add({ f: upper.f * Math.cos(e), u: upper.u * Math.cos(e), l: upper.l * Math.cos(e) }, perp, Math.sin(e)));
+
+    pts[el] = add(pts[sh], upper, 0.3);
+    pts[wr] = add(pts[el], fore, 0.27);
+    for (const h of side === 1 ? [17, 19, 21] : [18, 20, 22]) {
+      pts[h] = add(pts[wr], fore, 0.06);
+    }
+  }
+}
+
+// Rotate the body forward around the feet, then rest it on the floor
+function tipForward(pts, pitchDeg) {
+  const p = pitchDeg * DEG;
+  for (const pt of pts) {
+    const f = pt.f * Math.cos(p) + pt.u * Math.sin(p);
+    const u = pt.u * Math.cos(p) - pt.f * Math.sin(p);
+    pt.f = f;
+    pt.u = u;
+  }
+  const minU = Math.min(...pts.map((pt) => pt.u));
+  const meanF = pts.reduce((sum, pt) => sum + pt.f, 0) / pts.length;
+  for (const pt of pts) {
+    pt.u += 0.03 - minU;
+    pt.f -= meanF;
+  }
 }
 
 // yaw: 0 = facing the camera, 90 = side view facing image right,
@@ -135,6 +201,8 @@ export function synthPose(depth, options = {}) {
     u: (body[23].u + body[24].u) / 2,
     l: 0,
   };
+  // Lying poses are wide: shrink them to fit the frame
+  const fit = options.pitch ? 0.6 : 1;
 
   const landmarks = [];
   const world = [];
@@ -149,10 +217,10 @@ export function synthPose(depth, options = {}) {
       visibility: 0.99,
     });
     landmarks.push({
-      x: center.x + x * scale + noise * gaussian(rand),
+      x: center.x + x * scale * fit + noise * gaussian(rand),
       // Feet near the bottom of the frame, head near the top
-      y: center.y + 0.37 - p.u * scale * 1.1 + noise * gaussian(rand),
-      z: z * scale,
+      y: center.y + 0.37 - p.u * scale * fit * 1.1 + noise * gaussian(rand),
+      z: z * scale * fit,
       visibility: 0.99,
     });
   });
@@ -197,4 +265,13 @@ export function squatDepthTrace(reps, { fps = 30, leadMs = 1500 } = {}) {
     hold(rep.pauseMs ?? 600);
   }
   return frames;
+}
+
+// Generic rep trace: `level` goes 0 (rest) -> 1 (full rep) -> 0.
+// reps: [{ level, durationMs, pauseMs }]
+export function repTrace(reps, options) {
+  return squatDepthTrace(reps.map((r) => ({ ...r, depth: r.level })), options).map((f) => ({
+    t: f.t,
+    level: f.depth,
+  }));
 }
