@@ -27,8 +27,8 @@ export default function DemoFigure({ exerciseId, t = null, width = 240, height =
 
     const render = (phase) => drawDemo(ctx, demoPose(exerciseId, phase), bounds, { width, height, colors });
 
-    if (t !== null || exercise.kind === "hold" || prefersReducedMotion()) {
-      render(t ?? (exercise.kind === "hold" ? 0 : 1));
+    if (t !== null || exercise.staticDemo || prefersReducedMotion()) {
+      render(t ?? (exercise.staticDemo ? 0 : 1));
       return undefined;
     }
 

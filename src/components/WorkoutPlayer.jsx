@@ -107,7 +107,9 @@ function TargetPanel({ runner, state, now, onFinishSet }) {
         <div className="depth-bar" style={{ width: `${Math.round(progress * 100)}%` }} />
       </div>
       {exercise.kind === "hold" && !holdingNow && (
-        <p className="status-banner">Get into position: the timer runs while you hold the plank</p>
+        <p className="status-banner">
+          {exercise.positionHint}. {exercise.timerHint ?? "The timer runs while you're in position"}.
+        </p>
       )}
       {state && state.status !== "active" && exercise.kind !== "hold" && state.message && (
         <p className="status-banner">{state.message}</p>

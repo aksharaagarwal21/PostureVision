@@ -65,7 +65,9 @@ export class VoiceCoach {
     if (!this.announcedReady) {
       this.announcedReady = true;
       if (!this.announceReady) return;
-      const text = exercise.kind === "hold" ? `Good. Hold your ${exercise.name.toLowerCase()}` : "Ready. Start now";
+      const text = exercise.kind === "hold"
+        ? exercise.holdVoice ?? `Good. Hold your ${exercise.name.toLowerCase()}`
+        : "Ready. Start now";
       this.say(text, now, { interrupt: true });
       return;
     }
