@@ -57,6 +57,16 @@ npm run dev
 
 Open the local URL in Chrome or Edge and allow camera access.
 
+## Install on your phone
+
+PostureVision can be installed like an app, with its own icon and a full-screen window:
+
+- **Android (Chrome)**: open the live app, tap the **⋮** menu, then **Add to Home screen** (or **Install app**).
+- **iPhone (Safari)**: open the live app, tap **Share**, then **Add to Home Screen**.
+- **Desktop (Chrome / Edge)**: click the install icon in the address bar.
+
+The pose model is downloaded the first time you use it, so you still need an internet connection.
+
 ## Deploy
 
 Every push to `master` is tested, built and deployed to GitHub Pages by `.github/workflows/deploy.yml`.
