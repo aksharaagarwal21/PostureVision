@@ -10,7 +10,7 @@ import { VoiceCoach, createBrowserSpeaker, stopSpeaking } from "../engine/voiceC
 import { PoseClassifier } from "../engine/poseClassifier";
 import { getExercise } from "../engine/exercises";
 import { getGuide } from "../content/exerciseGuides";
-import { describeTarget, formatDuration } from "../engine/workoutPlan";
+import { describeTarget, formatDuration, planSteps, allItems } from "../engine/workoutPlan";
 import { loadModel } from "../engine/modelStore";
 
 const TICK_MS = 100;
@@ -182,7 +182,7 @@ function SetLog({ results }) {
 export default function WorkoutPlayer({ plan, profile, onFinish, onExit }) {
   const [runner] = useState(() => new WorkoutRunner(plan, { weightKg: profile.weightKg }));
   const [session] = useState(() => {
-    const first = plan.items[0].exerciseId;
+    const first = planSteps(plan)[0].exerciseId;
     return new WorkoutSession({ exercise: first, classifier: loadClassifier(first) });
   });
   const [speaker] = useState(() => createBrowserSpeaker());
@@ -259,7 +259,8 @@ export default function WorkoutPlayer({ plan, profile, onFinish, onExit }) {
   };
   const paused = runner.paused;
   const step = runner.step;
-  const exerciseNumber = step ? step.itemIndex + 1 : plan.items.length;
+  const exerciseCount = allItems(plan).length;
+  const exerciseNumber = step ? step.itemIndex + 1 : exerciseCount;
 
   return (
     <div className="player">
@@ -267,7 +268,7 @@ export default function WorkoutPlayer({ plan, profile, onFinish, onExit }) {
         <div>
           <strong>{plan.name}</strong>
           <span className="muted small">
-            {" "}· Exercise {exerciseNumber} of {plan.items.length}
+            {" "}· {step?.section === "warmup" ? "Warm-up · " : ""}Exercise {exerciseNumber} of {exerciseCount}
           </span>
         </div>
         <div className="player-stats">
