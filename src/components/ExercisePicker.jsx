@@ -1,16 +1,32 @@
 import { useState } from "react";
 
 import ExerciseGuide from "./ExerciseGuide";
-import { EXERCISES } from "../engine/exercises";
+import { EXERCISES, CATEGORIES } from "../engine/exercises";
 
 export default function ExercisePicker({ value, onChange }) {
   const [showGuide, setShowGuide] = useState(false);
+  const [category, setCategory] = useState("all");
   const selected = EXERCISES.find((e) => e.id === value) ?? EXERCISES[0];
+  const shown = category === "all" ? EXERCISES : EXERCISES.filter((e) => e.categories.includes(category));
 
   return (
     <section className="panel picker">
+      <div className="category-filter" role="radiogroup" aria-label="Category">
+        {[{ id: "all", name: "All" }, ...CATEGORIES].map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            role="radio"
+            aria-checked={category === c.id}
+            className={category === c.id ? "selected" : ""}
+            onClick={() => setCategory(c.id)}
+          >
+            {c.name}
+          </button>
+        ))}
+      </div>
       <div className="picker-grid" role="radiogroup" aria-label="Exercise">
-        {EXERCISES.map((ex) => (
+        {shown.map((ex) => (
           <button
             key={ex.id}
             role="radio"
