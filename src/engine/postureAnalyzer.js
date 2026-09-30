@@ -63,9 +63,6 @@ function jointAngle(landmarks, world, a, b, c) {
 export function computeSquatMetrics(landmarks, world = null) {
   if (!landmarks || landmarks.length < 33) return null;
 
-  const required = SQUAT_REQUIRED.map((i) => landmarks[i]);
-  const bodyVisible = required.every((lm) => visibilityOf(lm) >= MIN_VISIBILITY && inFrame(lm));
-
   const { view, widthRatio } = detectView(landmarks);
   const leftVis = sideVisibility(landmarks, "left");
   const rightVis = sideVisibility(landmarks, "right");
@@ -76,6 +73,14 @@ export function computeSquatMetrics(landmarks, world = null) {
     nearSide = (landmarks[LM.LEFT_HIP].z ?? 0) <= (landmarks[LM.RIGHT_HIP].z ?? 0) ? "left" : "right";
   }
   const near = SIDES[nearSide];
+
+  // From the side only the near leg has to be clearly visible
+  const required = view === View.SIDE
+    ? [near.shoulder, near.hip, near.knee, near.ankle]
+    : SQUAT_REQUIRED;
+  const bodyVisible = required.every(
+    (i) => visibilityOf(landmarks[i]) >= MIN_VISIBILITY && inFrame(landmarks[i])
+  );
 
   // Knee and hip angles for both legs
   const L = SIDES.left;
