@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { EXERCISES, getExercise } from "../src/engine/exercises";
+import { EXERCISES, CATEGORIES, getExercise, exercisesIn } from "../src/engine/exercises";
 import { WorkoutSession, Status } from "../src/engine/workoutSession";
 import { RepCounter } from "../src/engine/repCounter";
 import { PostureAnalyzer } from "../src/engine/postureAnalyzer";
@@ -57,9 +57,9 @@ function issuesFor(exerciseId, poseOptions, { inRep = true, yaw = 90 } = {}) {
 }
 
 describe("exercise library", () => {
-  it("has 10 exercises with everything the session needs", () => {
-    expect(EXERCISES).toHaveLength(10);
-    expect(new Set(EXERCISES.map((e) => e.id)).size).toBe(10);
+  it("has 16 exercises with everything the session needs", () => {
+    expect(EXERCISES).toHaveLength(16);
+    expect(new Set(EXERCISES.map((e) => e.id)).size).toBe(16);
     for (const ex of EXERCISES) {
       expect(ex.name).toBeTruthy();
       expect(ex.instructions).toBeTruthy();
@@ -75,6 +75,18 @@ describe("exercise library", () => {
         expect(ex.targetVoice).toBeTruthy();
       }
     }
+  });
+
+  it("puts every exercise in at least one known category", () => {
+    const ids = CATEGORIES.map((c) => c.id);
+    for (const ex of EXERCISES) {
+      expect(ex.categories.length).toBeGreaterThan(0);
+      for (const c of ex.categories) expect(ids).toContain(c);
+    }
+    for (const c of ids) expect(exercisesIn(c).length).toBeGreaterThan(0);
+    expect(exercisesIn("warmup").map((e) => e.id)).toEqual(
+      expect.arrayContaining(["high_knees", "butt_kicks", "arm_circles", "torso_twist", "side_bend", "hip_hinge"])
+    );
   });
 });
 
@@ -186,5 +198,68 @@ describe("plank hold", () => {
     for (let i = 0; i < 10; i++) state = session.processFrame(synthPose(0, { yaw: 90, rand }), (t += 33));
     expect(state.hold.holding).toBe(false);
     expect(state.hold.bestMs).toBeGreaterThan(9000);
+  });
+});
+
+// Feed an angle trace straight into an exercise's rep counter
+function countTrace(id, rest, peak, reps, { durationMs = 1500, pauseMs = 400 } = {}) {
+  const ex = getExercise(id);
+  const counter = new RepCounter(ex.counter);
+  counter.calibrate({ standingAngle: rest });
+  let t = 0;
+  for (let r = 0; r < reps; r++) {
+    const n = Math.max(3, Math.round(durationMs / 33));
+    for (let i = 0; i <= n; i++) {
+      counter.update({ angle: rest + (peak - rest) * Math.sin((Math.PI * i) / n), timestamp: (t += 33) });
+    }
+    for (let e = 0; e < pauseMs; e += 33) counter.update({ angle: rest, timestamp: (t += 33) });
+  }
+  return counter;
+}
+
+describe("warm-up exercises", () => {
+  it.each([
+    ["high_knees", 165, 95, { durationMs: 600, pauseMs: 100 }],
+    ["butt_kicks", 172, 55, { durationMs: 600, pauseMs: 100 }],
+    ["hip_hinge", 172, 100, {}],
+    ["side_bend", 2, 24, {}],
+  ])("%s counts every rep, even at warm-up pace", (id, rest, peak, pace) => {
+    const counter = countTrace(id, rest, peak, 10, pace);
+    expect(counter.reps).toBe(10);
+    expect(counter.history.every((r) => r.reachedTarget)).toBe(true);
+  });
+
+  it("does not count tiny knee lifts as high knees", () => {
+    expect(countTrace("high_knees", 165, 150, 5, { durationMs: 600 }).reps).toBe(0);
+  });
+
+  it.each([
+    ["butt_kicks", "knees_forward", { minHipAngle: 120 }],
+    ["hip_hinge", "squatting", { nearKneeAngle: 120 }],
+    ["side_bend", "lean_forward", { torsoLean: 40, torsoSideLean: 10 }],
+    ["high_knees", "lean_back", { torsoLean: 30 }],
+  ])("%s flags %s", (id, ruleId, metrics) => {
+    const analyzer = new PostureAnalyzer(getExercise(id).rules);
+    const m = { view: "front", nearSide: "left", ...metrics };
+    let result;
+    for (let i = 0; i < 6; i++) result = analyzer.analyze(m, { inRep: true, reliable: true });
+    expect(result.issues.map((i) => i.id)).toContain(ruleId);
+  });
+
+  it("times arm circles only while the arms are up", () => {
+    const rand = mulberry32(21);
+    const session = new WorkoutSession({ exercise: "arm_circles" });
+    let t = 0;
+    let state;
+    for (let i = 0; i < 90; i++) {
+      state = session.processFrame(synthPose(0, { yaw: 0, rand, arms: { abduction: 90, elbow: 5 } }), (t += 33));
+    }
+    expect(state.hold.holding).toBe(true);
+    expect(state.hold.totalMs).toBeGreaterThan(2500);
+
+    for (let i = 0; i < 10; i++) {
+      state = session.processFrame(synthPose(0, { yaw: 0, rand, arms: { abduction: 5, elbow: 5 } }), (t += 33));
+    }
+    expect(state.hold.holding).toBe(false);
   });
 });
