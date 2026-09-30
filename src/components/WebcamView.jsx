@@ -1,6 +1,13 @@
 import { useRef, useEffect, useState } from "react";
 
-import { createPoseDetector, POSE_CONNECTIONS } from "../pose/poseDetector";
+import { createPoseDetector } from "../pose/poseDetector";
+import {
+  skeletonColor,
+  drawSkeleton,
+  drawMistakeMarks,
+  drawMistakeBanner,
+  drawAngleLabel,
+} from "./overlay";
 
 const VIDEO_CONSTRAINTS = {
   width: { ideal: 1280 },
@@ -28,62 +35,6 @@ function cameraErrorMessage(err) {
 
 // How often the React UI is updated (the canvas still renders every frame)
 const UI_UPDATE_MS = 100;
-
-const COLORS = {
-  good: "#22c55e",
-  warning: "#f59e0b",
-  error: "#ef4444",
-  idle: "#38bdf8",
-};
-
-function skeletonColor(state) {
-  if (!state || state.status !== "active") return COLORS.idle;
-  if (state.issues.some((i) => i.severity === "error")) return COLORS.error;
-  if (state.issues.some((i) => i.severity === "warning")) return COLORS.warning;
-  return COLORS.good;
-}
-
-function drawSkeleton(ctx, landmarks, width, height, color) {
-  ctx.lineWidth = Math.max(3, width / 250);
-  ctx.strokeStyle = color;
-  ctx.lineCap = "round";
-  for (const { start, end } of POSE_CONNECTIONS) {
-    // Skip the face mesh lines; they add clutter without helping
-    if (start < 11 || end < 11) continue;
-    const a = landmarks[start];
-    const b = landmarks[end];
-    if ((a.visibility ?? 1) < 0.5 || (b.visibility ?? 1) < 0.5) continue;
-    ctx.beginPath();
-    ctx.moveTo(a.x * width, a.y * height);
-    ctx.lineTo(b.x * width, b.y * height);
-    ctx.stroke();
-  }
-
-  ctx.fillStyle = "#ffffff";
-  for (const lm of landmarks.slice(11)) {
-    if ((lm.visibility ?? 1) < 0.5) continue;
-    ctx.beginPath();
-    ctx.arc(lm.x * width, lm.y * height, Math.max(3, width / 300), 0, 2 * Math.PI);
-    ctx.fill();
-  }
-}
-
-function drawAngleLabel(ctx, landmarks, state, width, height, mirrored) {
-  if (state?.labelJoint == null || !Number.isFinite(state.angle)) return;
-  const joint = landmarks[state.labelJoint];
-  const x = (mirrored ? 1 - joint.x : joint.x) * width;
-  const y = joint.y * height;
-
-  const text = `${Math.round(state.angle)}°`;
-  ctx.font = `600 ${Math.round(width / 40)}px system-ui, sans-serif`;
-  const w = ctx.measureText(text).width + 16;
-  const h = width / 28;
-  ctx.fillStyle = "rgba(15, 23, 42, 0.75)";
-  ctx.fillRect(x + 12, y - h / 2, w, h);
-  ctx.fillStyle = "#ffffff";
-  ctx.textBaseline = "middle";
-  ctx.fillText(text, x + 20, y);
-}
 
 export default function WebcamView({ session, model = "full", mirrored = true, onFrame, onStatus }) {
   const videoRef = useRef(null);
@@ -143,11 +94,13 @@ export default function WebcamView({ session, model = "full", mirrored = true, o
         ctx.drawImage(video, 0, 0, width, height);
         if (result.landmarks) {
           drawSkeleton(ctx, result.landmarks, width, height, skeletonColor(state));
+          drawMistakeMarks(ctx, result.landmarks, state, width, height, now);
         }
         ctx.restore();
 
         if (result.landmarks) {
           drawAngleLabel(ctx, result.landmarks, state, width, height, mirrored);
+          drawMistakeBanner(ctx, state, width);
         }
 
         // Throttle React updates, but never drop a rep event
