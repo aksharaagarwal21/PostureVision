@@ -4,6 +4,8 @@ A browser app that plans and guides your workouts. It watches you through the we
 
 Everything runs in the browser; no video is uploaded.
 
+**Live app:** https://aksharaagarwal21.github.io/PostureVision/
+
 ## Exercises
 
 16 exercises in 5 categories. Some belong to more than one category.
@@ -54,6 +56,14 @@ npm run dev
 ```
 
 Open the local URL in Chrome or Edge and allow camera access.
+
+## Deploy
+
+Every push to `master` is tested, built and deployed to GitHub Pages by `.github/workflows/deploy.yml`.
+
+One-time setup: in the repository go to **Settings → Pages** and set **Source** to **GitHub Actions**.
+
+The build is a static site in `dist/` (`npm run build`), so it can be hosted anywhere that serves static files over HTTPS. HTTPS is required because browsers only allow camera access on secure pages.
 
 ## How to use
 
