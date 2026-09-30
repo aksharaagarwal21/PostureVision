@@ -82,4 +82,12 @@ describe("VoiceCoach", () => {
     }
     expect(said).toEqual(["Good. Hold your plank", "10 seconds", "20 seconds"]);
   });
+
+  it("stays quiet about readiness in guided workouts", () => {
+    const said = [];
+    const coach = new VoiceCoach((text) => said.push(text), { announceReady: false });
+    coach.update(active(), squat, 0);
+    coach.update(active({ reps: 1, event: { type: "rep", rep: rep() } }), squat, 1000);
+    expect(said).toEqual(["1. Good rep"]);
+  });
 });

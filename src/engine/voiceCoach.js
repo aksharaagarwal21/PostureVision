@@ -15,9 +15,12 @@ const POSITION_COOLDOWN_MS = 10000;
 const HOLD_CALLOUT_EVERY_MS = 10000;
 
 export class VoiceCoach {
-  // speak(text, { interrupt }) returns false if it could not speak right now
-  constructor(speak) {
+  // speak(text, { interrupt }) returns false if it could not speak right now.
+  // announceReady: say "Ready" when tracking starts (off in guided workouts,
+  // where the workout itself says "Go").
+  constructor(speak, { announceReady = true } = {}) {
     this.speak = speak;
+    this.announceReady = announceReady;
     this.reset();
   }
 
@@ -61,6 +64,7 @@ export class VoiceCoach {
 
     if (!this.announcedReady) {
       this.announcedReady = true;
+      if (!this.announceReady) return;
       const text = exercise.kind === "hold" ? `Good. Hold your ${exercise.name.toLowerCase()}` : "Ready. Start now";
       this.say(text, now, { interrupt: true });
       return;
@@ -149,10 +153,12 @@ export function createBrowserSpeaker() {
   }
   const synth = window.speechSynthesis;
 
-  return (text, { interrupt = false } = {}) => {
+  // interrupt: cut off whatever is being said
+  // queue: say it after the current speech instead of dropping it
+  return (text, { interrupt = false, queue = false } = {}) => {
     if (interrupt) {
       synth.cancel();
-    } else if (synth.speaking || synth.pending) {
+    } else if (!queue && (synth.speaking || synth.pending)) {
       return false;
     }
     const utterance = new SpeechSynthesisUtterance(text);
