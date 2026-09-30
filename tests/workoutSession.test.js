@@ -92,4 +92,17 @@ describe("SquatSession", () => {
     // Thresholds now come from the recorded up/down knee angles
     expect(session.counter.config.minRangeOfMotion).toBeGreaterThan(40);
   });
+
+  it("starts a new set without losing calibration", () => {
+    const session = new SquatSession();
+    const rand = mulberry32(12);
+    let state = runSession(session, [{ depth: 1, durationMs: 2000 }, { depth: 1, durationMs: 2000 }], { yaw: 0, rand });
+    expect(state.reps).toBe(2);
+
+    session.startSet();
+    const frame = session.processFrame(synthPose(0, { yaw: 0, rand }), 99_000);
+    expect(frame.reps).toBe(0);
+    expect(frame.calibrated).toBe(true);
+    expect(frame.status).toBe(Status.ACTIVE);
+  });
 });

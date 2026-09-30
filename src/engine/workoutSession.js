@@ -80,6 +80,18 @@ export class WorkoutSession {
     this.applyClassifierCalibration();
   }
 
+  // Start counting a new set: clears reps, scores and hold time but keeps
+  // the calibration, so the user doesn't have to recalibrate between sets
+  startSet() {
+    this.counter.reset();
+    this.analyzer.reset();
+    this.cues = [];
+    this.repScores = [];
+    this.currentRepScores = [];
+    this.currentRepIssues = new Map();
+    this.hold = emptyHold();
+  }
+
   recalibrate() {
     this.calibrationBuffer = [];
     this.baseline = null;
