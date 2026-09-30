@@ -116,6 +116,23 @@ export function computePoseMetrics(landmarks, world = null) {
 
   const bothArms = (leftArmVis >= 0.7 && rightArmVis >= 0.7) || Boolean(world);
 
+  // Hip bend on each side (shoulder-hip-knee): drops as a knee comes up
+  const leftHipAngle = angle(L.shoulder, L.hip, L.knee);
+  const rightHipAngle = angle(R.shoulder, R.hip, R.knee);
+
+  // Sideways lean of the torso, seen from the front (side bends)
+  const midShoulder = [
+    (landmarks[L.shoulder].x + landmarks[R.shoulder].x) / 2,
+    (landmarks[L.shoulder].y + landmarks[R.shoulder].y) / 2,
+  ];
+  const midHip = [
+    (landmarks[L.hip].x + landmarks[R.hip].x) / 2,
+    (landmarks[L.hip].y + landmarks[R.hip].y) / 2,
+  ];
+  const torsoSideLean = base.view === View.SIDE
+    ? NaN
+    : Math.abs(Math.atan2(midShoulder[0] - midHip[0], midHip[1] - midShoulder[1]) * (180 / Math.PI));
+
   return {
     ...base,
     leftElbowAngle,
@@ -131,6 +148,10 @@ export function computePoseMetrics(landmarks, world = null) {
     elbowAsymmetry: bothArms ? Math.abs(leftElbowAngle - rightElbowAngle) : NaN,
     shoulderAsymmetry: bothArms ? Math.abs(leftShoulderAngle - rightShoulderAngle) : NaN,
     minKneeAngle: Math.min(base.leftKneeAngle, base.rightKneeAngle),
+    leftHipAngle,
+    rightHipAngle,
+    minHipAngle: Math.min(leftHipAngle, rightHipAngle),
+    torsoSideLean,
     nearHipAngle: angle(near.shoulder, near.hip, near.knee),
     nearKneeAngle: angle(near.hip, near.knee, near.ankle),
     bodyLineAngle,
