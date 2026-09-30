@@ -5,6 +5,7 @@
 // voice coach should say.
 //
 //   kind        "reps" or "hold" (timed, e.g. plank)
+//   categories  groups it belongs to (see CATEGORIES), main one first
 //   parts       body parts that must be visible
 //   signal      metrics -> angle used for counting (degrees)
 //   restRange   angle range accepted as the rest position for calibration
@@ -15,6 +16,14 @@
 //   secondsPerRep  typical tempo, used to estimate workout length
 
 import { SQUAT_RULES, jointsFor } from "./postureAnalyzer";
+
+export const CATEGORIES = [
+  { id: "warmup", name: "Warm-up" },
+  { id: "upper", name: "Upper body" },
+  { id: "lower", name: "Lower body" },
+  { id: "core", name: "Core" },
+  { id: "cardio", name: "Cardio" },
+];
 
 const rule = (id, severity, message, voice, parts, when) => ({
   id,
@@ -51,6 +60,7 @@ export const EXERCISES = [
     id: "squat",
     name: "Squat",
     kind: "reps",
+    categories: ["lower"],
     met: 5.0,
     secondsPerRep: 3,
     camera: "Front or side view, whole body in frame",
@@ -76,6 +86,7 @@ export const EXERCISES = [
     id: "pushup",
     name: "Push-up",
     kind: "reps",
+    categories: ["upper", "core"],
     met: 8.0,
     secondsPerRep: 2.5,
     camera: "Side view, whole body in frame",
@@ -112,6 +123,7 @@ export const EXERCISES = [
     id: "lunge",
     name: "Lunge",
     kind: "reps",
+    categories: ["lower"],
     met: 4.0,
     secondsPerRep: 3,
     camera: "Side view, whole body in frame",
@@ -159,6 +171,7 @@ export const EXERCISES = [
     id: "curl",
     name: "Bicep curl",
     kind: "reps",
+    categories: ["upper"],
     met: 3.5,
     secondsPerRep: 3,
     camera: "Front or side view, upper body in frame",
@@ -199,6 +212,7 @@ export const EXERCISES = [
     id: "press",
     name: "Shoulder press",
     kind: "reps",
+    categories: ["upper"],
     met: 3.5,
     secondsPerRep: 3,
     camera: "Front view, upper body in frame",
@@ -241,6 +255,7 @@ export const EXERCISES = [
     id: "lateral_raise",
     name: "Lateral raise",
     kind: "reps",
+    categories: ["upper"],
     met: 3.5,
     secondsPerRep: 3,
     camera: "Front view, upper body in frame",
@@ -295,6 +310,7 @@ export const EXERCISES = [
     id: "jumping_jack",
     name: "Jumping jack",
     kind: "reps",
+    categories: ["cardio", "warmup"],
     met: 8.0,
     secondsPerRep: 1.2,
     camera: "Front view, whole body in frame",
@@ -335,6 +351,7 @@ export const EXERCISES = [
     id: "glute_bridge",
     name: "Glute bridge",
     kind: "reps",
+    categories: ["lower", "core"],
     met: 3.5,
     secondsPerRep: 3,
     camera: "Side view, lying on your back",
@@ -380,6 +397,7 @@ export const EXERCISES = [
     id: "situp",
     name: "Sit-up",
     kind: "reps",
+    categories: ["core"],
     met: 5.0,
     secondsPerRep: 2.5,
     camera: "Side view, lying on your back",
@@ -413,6 +431,7 @@ export const EXERCISES = [
     id: "plank",
     name: "Plank",
     kind: "hold",
+    categories: ["core"],
     met: 3.8,
     camera: "Side view, whole body in frame",
     instructions: "Forearms on the floor, elbows under your shoulders, body in a straight line from head to heels. Hold.",
@@ -441,4 +460,12 @@ export const EXERCISES_BY_ID = Object.fromEntries(EXERCISES.map((e) => [e.id, e]
 
 export function getExercise(id) {
   return EXERCISES_BY_ID[id] ?? EXERCISES[0];
+}
+
+export function exercisesIn(categoryId) {
+  return EXERCISES.filter((e) => e.categories.includes(categoryId));
+}
+
+export function categoryName(categoryId) {
+  return CATEGORIES.find((c) => c.id === categoryId)?.name ?? categoryId;
 }
