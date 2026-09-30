@@ -6,21 +6,30 @@ Everything runs in the browser; no video is uploaded.
 
 ## Exercises
 
-| Exercise | Camera | What it checks |
-| --- | --- | --- |
-| Squat | Front or side | Depth, chest up, knees caving in, knees past toes, heels lifting, even weight |
-| Push-up | Side | Depth, sagging or piked hips, hands under shoulders |
-| Lunge | Side | Depth, upright torso, front knee position |
-| Bicep curl | Front or side | Full curl, elbows pinned, no swinging |
-| Shoulder press | Front | Full lockout, no leaning back, even arms |
-| Lateral raise | Front | Shoulder height, not too high, straight arms, no swinging |
-| Jumping jack | Front | Arms overhead, feet wide |
-| Glute bridge | Side | Full hip extension, foot position |
-| Sit-up | Side | Full sit-up, knees bent |
-| Plank (timed) | Side | Sagging or piked hips, elbows under shoulders |
+16 exercises in 5 categories. Some belong to more than one category.
+
+| Exercise | Category | Camera | What it checks |
+| --- | --- | --- | --- |
+| High knees | Warm-up, Cardio | Front or side | Knees to hip height, staying tall |
+| Butt kicks | Warm-up, Cardio | Side | Heels to glutes, knees pointing down |
+| Arm circles (timed) | Warm-up, Upper body | Front | Arms at shoulder height, straight and level |
+| Torso twists (timed) | Warm-up, Core | Front | Standing tall while rotating |
+| Side bends | Warm-up, Core | Front | Range of the bend, bending sideways not forward |
+| Hip hinge | Warm-up, Lower body | Side | Hips back with a flat back, not squatting |
+| Jumping jack | Cardio, Warm-up | Front | Arms overhead, feet wide |
+| Push-up | Upper body, Core | Side | Depth, sagging or piked hips, hands under shoulders |
+| Bicep curl | Upper body | Front or side | Full curl, elbows pinned, no swinging |
+| Shoulder press | Upper body | Front | Full lockout, no leaning back, even arms |
+| Lateral raise | Upper body | Front | Shoulder height, not too high, straight arms, no swinging |
+| Squat | Lower body | Front or side | Depth, chest up, knees caving in, knees past toes, heels lifting |
+| Lunge | Lower body | Side | Depth, upright torso, front knee position |
+| Glute bridge | Lower body, Core | Side | Full hip extension, foot position |
+| Sit-up | Core | Side | Full sit-up, knees bent |
+| Plank (timed) | Core | Side | Sagging or piked hips, elbows under shoulders |
 
 ## Features
 
+- **Warm-up first**: every plan can start with a warm-up section that has its own short rests. Every template includes a warm-up suited to the workout, there's a 5-minute "Quick warm-up" template, and one click adds a standard warm-up to any plan.
 - **Your own workout plan**: pick exercises and set the number of sets, the reps or seconds per set, the rest between sets and the rest between exercises. You can also start from a template (beginner full body, upper body, lower body, core and cardio). Plans can be saved, and the planner shows the estimated time and calories.
 - **Guided workouts**: a get-ready countdown, a live set target ("7 / 12 reps" or a countdown for timed sets) and automatic moves to the next set when you hit your target. Rest breaks get a big countdown, a preview of what's next with its demo and steps, and **+20 s** / **Skip rest** buttons. You can pause, skip an exercise or end early.
 - **Performance records**: reps, form score, time and approximate calories for every set, saved to your history. The history page shows totals, workouts this week, your day streak and personal bests.
@@ -50,7 +59,7 @@ Open the local URL in Chrome or Edge and allow camera access.
 
 **Guided workout (My workout tab)**
 
-1. Enter your body weight (only used for calorie estimates) and pick a template, or build your own plan.
+1. Enter your body weight (only used for calorie estimates) and pick a template, or build your own plan. Keep or add a warm-up at the top.
 2. For each exercise, set the sets, reps or seconds per set, and the rest between sets. Set the rest between exercises at the bottom.
 3. Press **Start workout**. Get into position during the countdown; the voice tells you when to go.
 4. Do your reps. The set ends by itself when you hit the target (or press **Finish set**). Rest, then carry on.
@@ -58,7 +67,7 @@ Open the local URL in Chrome or Edge and allow camera access.
 
 **Free practice**
 
-Pick any exercise and train without a plan. Press **How to do it** for the demo and steps. You can also record your own start and end positions in *Train on your body* so the app learns your body and camera setup.
+Filter by category (Warm-up, Upper body, Lower body, Core, Cardio), pick any exercise and train without a plan. Press **How to do it** for the demo and steps. You can also record your own start and end positions in *Train on your body* so the app learns your body and camera setup.
 
 Pick the **Heavy** tracking model for maximum accuracy on a fast machine, or **Lite** on slower laptops and phones.
 
