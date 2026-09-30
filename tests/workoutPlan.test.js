@@ -8,14 +8,19 @@ import {
   estimatePlan,
   createPlanItem,
   formatDuration,
+  standardWarmup,
 } from "../src/engine/workoutPlan";
 
 describe("workout plans", () => {
   it("builds every template into a valid plan", () => {
     for (const t of TEMPLATES) {
       const plan = planFromTemplate(t.id);
-      expect(sanitizePlan(plan).items).toHaveLength(plan.items.length);
-      expect(plan.items.length).toBeGreaterThan(0);
+      const clean = sanitizePlan(plan);
+      expect(clean.items).toHaveLength(plan.items.length);
+      expect(clean.warmup).toHaveLength(plan.warmup.length);
+      // Every template starts with a warm-up
+      expect(plan.warmup.length).toBeGreaterThan(0);
+      expect(planSteps(plan).length).toBeGreaterThan(0);
     }
   });
 
@@ -70,5 +75,32 @@ describe("workout plans", () => {
   it("formats durations", () => {
     expect(formatDuration(65)).toBe("1:05");
     expect(formatDuration(3725)).toBe("1:02:05");
+  });
+
+  it("runs the warm-up first with short rests, then the workout", () => {
+    const plan = {
+      warmup: [createPlanItem("arm_circles", { sets: 1, restSec: 0 }), createPlanItem("high_knees", { sets: 1, restSec: 0 })],
+      warmupRestSec: 10,
+      items: [createPlanItem("squat", { sets: 2, restSec: 30 })],
+      restBetweenExercisesSec: 60,
+    };
+    const steps = planSteps(plan);
+    expect(steps.map((s) => `${s.section}:${s.exerciseId}`)).toEqual([
+      "warmup:arm_circles", "warmup:high_knees", "main:squat", "main:squat",
+    ]);
+    expect(steps.map((s) => s.restAfterSec)).toEqual([10, 60, 30, 0]);
+    expect(steps.map((s) => s.itemIndex)).toEqual([0, 1, 2, 2]);
+  });
+
+  it("builds a warm-up from warm-up exercises only", () => {
+    const warmup = standardWarmup();
+    expect(warmup.length).toBeGreaterThanOrEqual(5);
+    for (const it of warmup) expect(it.sets).toBe(1);
+  });
+
+  it("keeps old saved plans without a warm-up working", () => {
+    const plan = sanitizePlan({ items: [{ exerciseId: "squat", sets: 2 }] });
+    expect(plan.warmup).toEqual([]);
+    expect(planSteps(plan)).toHaveLength(2);
   });
 });

@@ -1,5 +1,5 @@
-// Personal workout plans: which exercises, how many sets, reps or seconds
-// per set, and how long to rest between sets and between exercises.
+// Personal workout plans: an optional warm-up, then the main exercises, with
+// sets, reps or seconds per set, and rest between sets and between exercises.
 
 import { EXERCISES_BY_ID, getExercise } from "./exercises";
 import { exerciseCalories, restCalories } from "./calories";
@@ -38,6 +38,8 @@ export function createPlanItem(exerciseId, overrides = {}) {
   };
 }
 
+export const DEFAULT_WARMUP_REST_SEC = 10;
+
 const item = (exerciseId, sets, amount, restSec, targetType = Target.REPS) =>
   createPlanItem(exerciseId, {
     sets,
@@ -46,11 +48,34 @@ const item = (exerciseId, sets, amount, restSec, targetType = Target.REPS) =>
     restSec,
   });
 
+// One set of each, short and easy: gets the heart rate up and joints moving
+const warm = (exerciseId, amount, targetType = Target.TIME) => item(exerciseId, 1, amount, 0, targetType);
+
+export function standardWarmup() {
+  return [
+    warm("arm_circles", 30),
+    warm("torso_twist", 30),
+    warm("side_bend", 10, Target.REPS),
+    warm("hip_hinge", 10, Target.REPS),
+    warm("high_knees", 30),
+    warm("butt_kicks", 30),
+  ];
+}
+
 export const TEMPLATES = [
+  {
+    id: "warmup_only",
+    name: "Quick warm-up",
+    description: "5 minutes to get moving",
+    warmup: standardWarmup,
+    build: () => [],
+    restBetweenExercisesSec: 15,
+  },
   {
     id: "beginner",
     name: "Beginner full body",
     description: "A gentle all-round start",
+    warmup: () => [warm("arm_circles", 30), warm("hip_hinge", 8, Target.REPS), warm("high_knees", 30)],
     build: () => [
       item("squat", 3, 10, 45),
       item("pushup", 3, 8, 45),
@@ -63,6 +88,7 @@ export const TEMPLATES = [
     id: "upper",
     name: "Upper body",
     description: "Chest, arms and shoulders",
+    warmup: () => [warm("arm_circles", 30), warm("torso_twist", 30), warm("jumping_jack", 30)],
     build: () => [
       item("pushup", 3, 10, 60),
       item("curl", 3, 12, 45),
@@ -75,6 +101,7 @@ export const TEMPLATES = [
     id: "lower",
     name: "Lower body",
     description: "Legs and glutes",
+    warmup: () => [warm("hip_hinge", 10, Target.REPS), warm("high_knees", 30), warm("butt_kicks", 30)],
     build: () => [
       item("squat", 4, 12, 60),
       item("lunge", 3, 10, 60),
@@ -86,6 +113,7 @@ export const TEMPLATES = [
     id: "core_cardio",
     name: "Core and cardio",
     description: "Get your heart rate up",
+    warmup: () => [warm("torso_twist", 30), warm("side_bend", 10, Target.REPS), warm("high_knees", 30)],
     build: () => [
       item("jumping_jack", 3, 40, 30, Target.TIME),
       item("situp", 3, 15, 30),
@@ -99,6 +127,8 @@ export function planFromTemplate(templateId) {
   const template = TEMPLATES.find((t) => t.id === templateId) ?? TEMPLATES[0];
   return {
     name: template.name,
+    warmup: template.warmup ? template.warmup() : [],
+    warmupRestSec: DEFAULT_WARMUP_REST_SEC,
     items: template.build(),
     restBetweenExercisesSec: template.restBetweenExercisesSec,
   };
@@ -106,7 +136,7 @@ export function planFromTemplate(templateId) {
 
 // Returns a valid copy of a plan (e.g. one loaded from storage or edited)
 export function sanitizePlan(plan) {
-  const items = (plan?.items ?? [])
+  const cleanItems = (list) => (list ?? [])
     .filter((i) => EXERCISES_BY_ID[i?.exerciseId])
     .map((i) => {
       const hold = getExercise(i.exerciseId).kind === "hold";
@@ -123,27 +153,47 @@ export function sanitizePlan(plan) {
 
   return {
     name: String(plan?.name ?? "My workout").slice(0, 60) || "My workout",
-    items,
+    warmup: cleanItems(plan?.warmup),
+    warmupRestSec: clampInt(plan?.warmupRestSec, LIMITS.restSec, DEFAULT_WARMUP_REST_SEC),
+    items: cleanItems(plan?.items),
     restBetweenExercisesSec: clampInt(plan?.restBetweenExercisesSec, LIMITS.restSec, 60),
   };
+}
+
+// Warm-up exercises first, then the main workout
+export function allItems(plan) {
+  return [
+    ...(plan.warmup ?? []).map((it) => ({ ...it, section: "warmup" })),
+    ...plan.items.map((it) => ({ ...it, section: "main" })),
+  ];
+}
+
+// Rest after the last set of an exercise: short between warm-up moves
+function restAfterExercise(plan, current, next) {
+  if (!next) return 0;
+  if (current.section === "warmup" && next.section === "warmup") {
+    return plan.warmupRestSec ?? DEFAULT_WARMUP_REST_SEC;
+  }
+  return plan.restBetweenExercisesSec;
 }
 
 // One entry per set, in order, with the rest that follows it
 export function planSteps(plan) {
   const steps = [];
-  plan.items.forEach((it, itemIndex) => {
+  const items = allItems(plan);
+  items.forEach((it, itemIndex) => {
     for (let set = 1; set <= it.sets; set++) {
       const lastSet = set === it.sets;
-      const lastItem = itemIndex === plan.items.length - 1;
       steps.push({
         itemIndex,
+        section: it.section,
         exerciseId: it.exerciseId,
         set,
         totalSets: it.sets,
         targetType: it.targetType,
         reps: it.reps,
         seconds: it.seconds,
-        restAfterSec: lastSet ? (lastItem ? 0 : plan.restBetweenExercisesSec) : it.restSec,
+        restAfterSec: lastSet ? restAfterExercise(plan, it, items[itemIndex + 1]) : it.restSec,
       });
     }
   });
