@@ -60,7 +60,7 @@ export default function TrainingPanel({ session, state, requireClassifier, onReq
       </p>
 
       <div className="train-buttons">
-        {["up", "down"].map((label) => (
+        {["rest", "active"].map((label) => (
           <button key={label} onClick={() => record(label)} disabled={busy}>
             Record {label.toUpperCase()} <span className="badge">{counts[label] ?? 0}</span>
           </button>
@@ -89,7 +89,7 @@ export default function TrainingPanel({ session, state, requireClassifier, onReq
         <>
           {prob && (
             <p className="small">
-              Live: up {Math.round((prob.up ?? 0) * 100)}% · down {Math.round((prob.down ?? 0) * 100)}%
+              Live: rest {Math.round((prob.rest ?? 0) * 100)}% · active {Math.round((prob.active ?? 0) * 100)}%
             </p>
           )}
           <label className="toggle">

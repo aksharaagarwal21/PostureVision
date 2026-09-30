@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SquatSession, Status } from "../src/engine/squatSession";
+import { SquatSession, Status } from "../src/engine/workoutSession";
 import { synthPose, squatDepthTrace, mulberry32 } from "./synthetic";
 
 function runSession(session, reps, { yaw, rand, noise = 0.004, worldNoise = 0.01, dropFrames = 0 }) {
@@ -81,7 +81,7 @@ describe("SquatSession", () => {
     const session = new SquatSession();
     const rand = mulberry32(5);
     let t = 0;
-    for (const [label, depth] of [["up", 0.02], ["down", 0.9]]) {
+    for (const [label, depth] of [["rest", 0.02], ["active", 0.9]]) {
       session.startRecording(label, 2000);
       for (let i = 0; i < 70; i++) {
         session.processFrame(synthPose(depth + rand() * 0.05, { yaw: 90, noise: 0.004, rand }), (t += 33));

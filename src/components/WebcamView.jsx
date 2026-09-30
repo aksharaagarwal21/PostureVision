@@ -1,7 +1,6 @@
 import { useRef, useEffect, useState } from "react";
 
 import { createPoseDetector, POSE_CONNECTIONS } from "../pose/poseDetector";
-import { LM } from "../engine/landmarks";
 
 const VIDEO_CONSTRAINTS = {
   width: { ideal: 1280 },
@@ -69,14 +68,13 @@ function drawSkeleton(ctx, landmarks, width, height, color) {
   }
 }
 
-function drawKneeLabel(ctx, landmarks, state, width, height, mirrored) {
-  if (!state?.metrics || !Number.isFinite(state.kneeAngle)) return;
-  const side = state.metrics.nearSide === "right" ? LM.RIGHT_KNEE : LM.LEFT_KNEE;
-  const knee = landmarks[side];
-  const x = (mirrored ? 1 - knee.x : knee.x) * width;
-  const y = knee.y * height;
+function drawAngleLabel(ctx, landmarks, state, width, height, mirrored) {
+  if (state?.labelJoint == null || !Number.isFinite(state.angle)) return;
+  const joint = landmarks[state.labelJoint];
+  const x = (mirrored ? 1 - joint.x : joint.x) * width;
+  const y = joint.y * height;
 
-  const text = `${Math.round(state.kneeAngle)}°`;
+  const text = `${Math.round(state.angle)}°`;
   ctx.font = `600 ${Math.round(width / 40)}px system-ui, sans-serif`;
   const w = ctx.measureText(text).width + 16;
   const h = width / 28;
@@ -149,7 +147,7 @@ export default function WebcamView({ session, model = "full", mirrored = true, o
         ctx.restore();
 
         if (result.landmarks) {
-          drawKneeLabel(ctx, result.landmarks, state, width, height, mirrored);
+          drawAngleLabel(ctx, result.landmarks, state, width, height, mirrored);
         }
 
         // Throttle React updates, but never drop a rep event

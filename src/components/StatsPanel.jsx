@@ -68,8 +68,8 @@ export default function StatsPanel({ state }) {
 
       <dl className="meta">
         <div>
-          <dt>Knee angle</dt>
-          <dd>{Number.isFinite(state.kneeAngle) ? `${Math.round(state.kneeAngle)}°` : "–"}</dd>
+          <dt>{state.angleLabel ?? "Angle"}</dt>
+          <dd>{Number.isFinite(state.angle) ? `${Math.round(state.angle)}°` : "–"}</dd>
         </div>
         <div>
           <dt>Camera</dt>

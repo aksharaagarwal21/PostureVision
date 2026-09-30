@@ -5,17 +5,17 @@ import StatsPanel from "./StatsPanel";
 import FeedbackPanel from "./FeedbackPanel";
 import RepHistory from "./RepHistory";
 import TrainingPanel from "./TrainingPanel";
-import { SquatSession } from "../engine/squatSession";
+import { WorkoutSession, CLASS_LABELS } from "../engine/workoutSession";
 import { PoseClassifier } from "../engine/poseClassifier";
 import { saveModel, loadModel, deleteModel } from "../engine/modelStore";
 import { POSE_MODELS } from "../pose/poseDetector";
 
-const CLASSIFIER_KEY = "squat-classifier";
+const CLASSIFIER_KEY = "classifier:squat";
 const SPEAK_COOLDOWN_MS = 4000;
 
 function createSession() {
-  const classifier = PoseClassifier.fromJSON(loadModel(CLASSIFIER_KEY)) ?? new PoseClassifier();
-  return new SquatSession({ classifier });
+  const classifier = PoseClassifier.fromJSON(loadModel(CLASSIFIER_KEY)) ?? new PoseClassifier({ labels: CLASS_LABELS });
+  return new WorkoutSession({ exercise: "squat", classifier });
 }
 
 function speak(text) {
