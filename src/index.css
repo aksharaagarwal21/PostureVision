@@ -969,3 +969,64 @@ input[type="number"] {
     background: #0b1120;
   }
 }
+
+/* Plan sections and categories */
+
+.section-title {
+  margin: 16px 0 4px;
+  font-size: 0.95rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.warmup-section {
+  padding: 4px 12px 12px;
+  margin-top: 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--warning) 8%, transparent);
+  border: 1px dashed color-mix(in srgb, var(--warning) 45%, transparent);
+}
+
+.warmup-empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.category-chip {
+  font-size: 0.72rem;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--button);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.category-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.category-filter button {
+  padding: 0.3em 0.8em;
+  border-radius: 999px;
+  font-size: 0.85rem;
+}
+
+.category-filter button.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #0b1120;
+  font-weight: 600;
+}

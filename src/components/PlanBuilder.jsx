@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import DemoFigure from "./DemoFigure";
 import ExerciseGuide from "./ExerciseGuide";
-import { EXERCISES, getExercise } from "../engine/exercises";
+import { EXERCISES, CATEGORIES, getExercise, categoryName } from "../engine/exercises";
 import {
   TEMPLATES,
   Target,
@@ -10,6 +10,7 @@ import {
   createPlanItem,
   planFromTemplate,
   sanitizePlan,
+  standardWarmup,
   estimatePlan,
   formatDuration,
 } from "../engine/workoutPlan";
@@ -51,6 +52,19 @@ function NumberField({ label, value, onChange, limits, suffix }) {
   );
 }
 
+// Exercises grouped by their main category
+function ExerciseOptions() {
+  return CATEGORIES.map((c) => (
+    <optgroup key={c.id} label={c.name}>
+      {EXERCISES.filter((ex) => ex.categories[0] === c.id).map((ex) => (
+        <option key={ex.id} value={ex.id}>
+          {ex.name}
+        </option>
+      ))}
+    </optgroup>
+  ));
+}
+
 function PlanItemRow({ item, index, count, onChange, onMove, onRemove }) {
   const [showGuide, setShowGuide] = useState(false);
   const exercise = getExercise(item.exerciseId);
@@ -75,12 +89,9 @@ function PlanItemRow({ item, index, count, onChange, onMove, onRemove }) {
               }}
               aria-label="Exercise"
             >
-              {EXERCISES.map((ex) => (
-                <option key={ex.id} value={ex.id}>
-                  {ex.name}
-                </option>
-              ))}
+              <ExerciseOptions />
             </select>
+            <span className="category-chip">{categoryName(exercise.categories[0])}</span>
             <button type="button" className="link-button" onClick={() => setShowGuide((v) => !v)}>
               {showGuide ? "Hide how-to" : "How to do it"}
             </button>
@@ -154,10 +165,52 @@ function PlanItemRow({ item, index, count, onChange, onMove, onRemove }) {
   );
 }
 
+function PlanItemList({ items, onItemsChange, addDefault, addLabel, emptyText, makeItem = createPlanItem }) {
+  const [addId, setAddId] = useState(addDefault);
+  const updateItem = (i, next) => onItemsChange(items.map((it, j) => (j === i ? next : it)));
+  const moveItem = (i, delta) => {
+    const next = [...items];
+    [next[i], next[i + delta]] = [next[i + delta], next[i]];
+    onItemsChange(next);
+  };
+
+  return (
+    <>
+      {items.length === 0 ? (
+        <p className="muted">{emptyText}</p>
+      ) : (
+        <ol className="plan-items">
+          {items.map((item, i) => (
+            <PlanItemRow
+              key={item.uid}
+              item={item}
+              index={i}
+              count={items.length}
+              onChange={(next) => updateItem(i, next)}
+              onMove={(delta) => moveItem(i, delta)}
+              onRemove={() => onItemsChange(items.filter((_, j) => j !== i))}
+            />
+          ))}
+        </ol>
+      )}
+      <div className="add-exercise">
+        <select value={addId} onChange={(e) => setAddId(e.target.value)} aria-label="Exercise to add">
+          <ExerciseOptions />
+        </select>
+        <button type="button" onClick={() => onItemsChange([...items, makeItem(addId)])}>
+          {addLabel}
+        </button>
+      </div>
+    </>
+  );
+}
+
+// Warm-up moves are short: one set, no rest between sets
+const warmupItem = (exerciseId) => createPlanItem(exerciseId, { sets: 1, restSec: 0, targetType: "time", seconds: 30 });
+
 export default function PlanBuilder({ profile, onProfileChange, onStart }) {
   const [plan, setPlan] = useState(loadDraft);
   const [savedPlans, setSavedPlans] = useState(loadPlans);
-  const [addId, setAddId] = useState("squat");
 
   // Keep the draft between visits
   useEffect(() => {
@@ -166,13 +219,8 @@ export default function PlanBuilder({ profile, onProfileChange, onStart }) {
 
   const estimate = estimatePlan(plan, profile.weightKg);
 
-  const setItems = (items) => setPlan({ ...plan, items });
-  const updateItem = (i, next) => setItems(plan.items.map((it, j) => (j === i ? next : it)));
-  const moveItem = (i, delta) => {
-    const items = [...plan.items];
-    [items[i], items[i + delta]] = [items[i + delta], items[i]];
-    setItems(items);
-  };
+  const warmup = plan.warmup ?? [];
+  const totalExercises = warmup.length + plan.items.length;
 
   function saveCurrentPlan() {
     const clean = sanitizePlan(plan);
@@ -202,7 +250,10 @@ export default function PlanBuilder({ profile, onProfileChange, onStart }) {
                   <strong>{t.name}</strong>
                   <span className="muted small">{t.description}</span>
                   <span className="small">
-                    ~{Math.round(est.totalSec / 60)} min · {tplPlan.items.length} exercises
+                    ~{Math.round(est.totalSec / 60)} min ·{" "}
+                    {tplPlan.items.length > 0
+                      ? `warm-up + ${tplPlan.items.length} exercises`
+                      : `${tplPlan.warmup.length} warm-up moves`}
                   </span>
                 </button>
               );
@@ -223,36 +274,53 @@ export default function PlanBuilder({ profile, onProfileChange, onStart }) {
             </label>
           </div>
 
-          {plan.items.length === 0 ? (
-            <p className="muted">Add at least one exercise to build your workout.</p>
-          ) : (
-            <ol className="plan-items">
-              {plan.items.map((item, i) => (
-                <PlanItemRow
-                  key={item.uid}
-                  item={item}
-                  index={i}
-                  count={plan.items.length}
-                  onChange={(next) => updateItem(i, next)}
-                  onMove={(delta) => moveItem(i, delta)}
-                  onRemove={() => setItems(plan.items.filter((_, j) => j !== i))}
+          <div className="warmup-section">
+            <div className="section-head">
+              <h3 className="section-title">Warm-up</h3>
+              {warmup.length > 0 && (
+                <button type="button" className="link-button" onClick={() => setPlan({ ...plan, warmup: [] })}>
+                  Remove warm-up
+                </button>
+              )}
+            </div>
+            {warmup.length === 0 ? (
+              <div className="warmup-empty">
+                <p className="muted small">
+                  Warming up raises your heart rate and loosens your joints, which helps prevent injuries.
+                </p>
+                <button type="button" onClick={() => setPlan({ ...plan, warmup: standardWarmup() })}>
+                  + Add standard warm-up (about 5 min)
+                </button>
+              </div>
+            ) : (
+              <>
+                <PlanItemList
+                  items={warmup}
+                  onItemsChange={(items) => setPlan({ ...plan, warmup: items })}
+                  makeItem={warmupItem}
+                  addDefault="arm_circles"
+                  addLabel="+ Add warm-up move"
+                  emptyText=""
                 />
-              ))}
-            </ol>
-          )}
-
-          <div className="add-exercise">
-            <select value={addId} onChange={(e) => setAddId(e.target.value)} aria-label="Exercise to add">
-              {EXERCISES.map((ex) => (
-                <option key={ex.id} value={ex.id}>
-                  {ex.name}
-                </option>
-              ))}
-            </select>
-            <button type="button" onClick={() => setItems([...plan.items, createPlanItem(addId)])}>
-              + Add exercise
-            </button>
+                <NumberField
+                  label="Rest between warm-up moves"
+                  value={plan.warmupRestSec ?? 10}
+                  limits={LIMITS.restSec}
+                  onChange={(warmupRestSec) => setPlan({ ...plan, warmupRestSec })}
+                  suffix="sec"
+                />
+              </>
+            )}
           </div>
+
+          <h3 className="section-title">Main workout</h3>
+          <PlanItemList
+            items={plan.items}
+            onItemsChange={(items) => setPlan({ ...plan, items })}
+            addDefault="squat"
+            addLabel="+ Add exercise"
+            emptyText="Add exercises for your main workout."
+          />
 
           <NumberField
             label="Rest between exercises"
@@ -310,12 +378,12 @@ export default function PlanBuilder({ profile, onProfileChange, onStart }) {
           <button
             type="button"
             className="primary big"
-            disabled={plan.items.length === 0}
+            disabled={totalExercises === 0}
             onClick={() => onStart(sanitizePlan(plan))}
           >
             Start workout
           </button>
-          <button type="button" className="secondary" onClick={saveCurrentPlan} disabled={plan.items.length === 0}>
+          <button type="button" className="secondary" onClick={saveCurrentPlan} disabled={totalExercises === 0}>
             Save this plan
           </button>
         </section>
@@ -329,7 +397,7 @@ export default function PlanBuilder({ profile, onProfileChange, onStart }) {
                   <button type="button" className="link-button" onClick={() => setPlan(sanitizePlan(p))}>
                     {p.name}
                   </button>
-                  <span className="muted small">{p.items.length} exercises</span>
+                  <span className="muted small">{(p.warmup?.length ?? 0) + p.items.length} exercises</span>
                   <button type="button" className="icon-button" onClick={() => deleteSavedPlan(p.name)} aria-label={`Delete ${p.name}`}>
                     ✕
                   </button>
