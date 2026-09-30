@@ -24,6 +24,8 @@ export const LM = {
 export const SIDES = {
   left: {
     shoulder: LM.LEFT_SHOULDER,
+    elbow: LM.LEFT_ELBOW,
+    wrist: LM.LEFT_WRIST,
     hip: LM.LEFT_HIP,
     knee: LM.LEFT_KNEE,
     ankle: LM.LEFT_ANKLE,
@@ -32,6 +34,8 @@ export const SIDES = {
   },
   right: {
     shoulder: LM.RIGHT_SHOULDER,
+    elbow: LM.RIGHT_ELBOW,
+    wrist: LM.RIGHT_WRIST,
     hip: LM.RIGHT_HIP,
     knee: LM.RIGHT_KNEE,
     ankle: LM.RIGHT_ANKLE,
