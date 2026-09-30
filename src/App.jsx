@@ -5,6 +5,7 @@ import WorkoutPlayer from "./components/WorkoutPlayer";
 import WorkoutSummary from "./components/WorkoutSummary";
 import HistoryView from "./components/HistoryView";
 import WorkoutView from "./components/WorkoutView";
+import InstallBanner from "./components/InstallBanner";
 import { loadHistory, addWorkout, historyStats, loadProfile, saveProfile } from "./engine/history";
 
 const TABS = [
@@ -87,6 +88,8 @@ function App() {
         )}
       </header>
       <main>{content}</main>
+      {/* Keep it out of the way while the camera is running */}
+      <InstallBanner hidden={Boolean(activePlan)} />
     </div>
   );
 }
