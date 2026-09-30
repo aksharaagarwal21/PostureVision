@@ -183,7 +183,7 @@ export class SquatSession {
       timestamp,
       reliable: true,
       hipDrop,
-      downProbability: classification?.probabilities?.down,
+      activeProbability: classification?.probabilities?.down,
     });
 
     const inRep = counterState.phase !== Phase.STANDING;

@@ -49,7 +49,7 @@ describe("SquatRepCounter", () => {
     const events = run(counter, trace([{ bottom: 90, durationMs: 2000 }, { bottom: 140, durationMs: 1500 }]));
     expect(counter.reps).toBe(1);
     expect(counter.partialReps).toBe(1);
-    expect(events[1].rep.reason).toBe("not deep enough");
+    expect(events[1].rep.reason).toBe("not enough range of motion");
   });
 
   it("counts a bounce at the bottom only once", () => {
@@ -102,6 +102,23 @@ describe("SquatRepCounter", () => {
     // A user whose full squat only reaches 105 degrees still gets counted
     run(counter, trace([{ bottom: 105, durationMs: 2000 }, { bottom: 108, durationMs: 2000 }], { standing: 165 }));
     expect(counter.reps).toBe(2);
+  });
+
+  it("counts movements where the angle rises, like a lateral raise", () => {
+    const counter = new SquatRepCounter({
+      direction: "increase",
+      standingAngle: 15,
+      goodDepthAngle: 80,
+      minRangeOfMotion: 45,
+    });
+    // trace() dips below the rest angle, so mirror it around the rest angle
+    const frames = trace([{ bottom: -70, durationMs: 1800 }, { bottom: -60, durationMs: 1500 }, { bottom: -10, durationMs: 1500 }], { standing: 15 })
+      .map((f) => ({ ...f, angle: 30 - f.angle }));
+    const events = run(counter, frames);
+    expect(counter.reps).toBe(2);
+    expect(counter.partialReps).toBe(1);
+    expect(events[0].rep.depthAngle).toBeCloseTo(100, 0);
+    expect(events[0].rep.reachedTarget).toBe(true);
   });
 
   it("counts exactly right on at least 98% of noisy random sessions", () => {

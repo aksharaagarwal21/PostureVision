@@ -1,16 +1,21 @@
-// Squat rep counter.
+// Rep counter.
 //
-// A hysteresis state machine on the (smoothed) knee angle:
+// A hysteresis state machine on a (smoothed) joint angle. For exercises where
+// the angle drops during the rep (squat, curl, push-up):
 //
 //   STANDING --angle drops below descent line--> DESCENDING
 //   DESCENDING --angle rises past bottom + hysteresis--> ASCENDING
 //   ASCENDING --angle drops below the bottom again--> DESCENDING (bounce)
 //   ASCENDING --back above return line / plateaus near the top--> STANDING
 //
-// On the way back to STANDING the rep is validated (range of motion, duration,
-// hip drop and optionally a trained classifier) and either counted or reported
-// as a partial rep. Thresholds are relative to the user's calibrated standing
-// angle, so they adapt to different bodies and camera angles.
+// Exercises where the angle rises during the rep (lateral raise, press,
+// glute bridge) use direction "increase"; internally the signal is mirrored
+// so the same logic applies. "Standing" always means the rest position.
+//
+// On the way back to rest the rep is validated (range of motion, duration,
+// hip drop and optionally a trained classifier) and either counted or
+// reported as a partial rep. Thresholds are relative to the user's
+// calibrated rest angle, so they adapt to different bodies and camera angles.
 
 export const Phase = {
   STANDING: "standing",
@@ -19,24 +24,26 @@ export const Phase = {
 };
 
 export const DEFAULT_REP_CONFIG = {
-  standingAngle: 170,       // calibrated knee angle when standing tall
-  descentOffset: 20,        // descent starts this many degrees below standing
-  returnOffset: 12,         // rep ends this many degrees below standing
-  minRangeOfMotion: 45,     // standing - deepest angle needed to count a rep
-  goodDepthAngle: 100,      // knee angle at or below this counts as parallel
-  bottomHysteresis: 8,      // degrees above the deepest point before ascending
+  direction: "decrease",    // "decrease" or "increase" during the rep
+  standingAngle: 170,       // calibrated angle at the rest position
+  descentOffset: 20,        // rep starts this many degrees away from rest
+  returnOffset: 12,         // rep ends this many degrees away from rest
+  minRangeOfMotion: 45,     // degrees from rest needed to count a rep
+  goodDepthAngle: 100,      // reaching this angle counts as full range
+  depthLabels: ["parallel", "above parallel"],
+  bottomHysteresis: 8,      // degrees past the turning point before returning
   confirmFrames: 2,         // consecutive frames needed to confirm a transition
   plateauMs: 600,           // time near the top that also finishes a rep
   minRepMs: 500,            // faster than this is treated as noise
   maxRepMs: 30000,
   maxDropoutMs: 1500,       // tracking loss longer than this aborts the rep
   minHipDrop: 0.2,          // hip drop at the bottom, in thigh lengths
-  requireClassifier: false, // require a trained classifier to see "down"
-  minDownProbability: 0.6,
-  standingAdaptRate: 0.02,  // how quickly the standing angle tracks the user
+  requireClassifier: false, // require a trained classifier to see "active"
+  minActiveProbability: 0.6,
+  standingAdaptRate: 0.02,  // how quickly the rest angle tracks the user
 };
 
-export class SquatRepCounter {
+export class RepCounter {
   constructor(config = {}) {
     this.config = { ...DEFAULT_REP_CONFIG, ...config };
     this.reset();
@@ -57,33 +64,41 @@ export class SquatRepCounter {
     this.config = { ...this.config, ...config };
   }
 
-  // Sets thresholds from measured standing and bottom angles
+  // +1 when the angle drops during a rep, -1 when it rises
+  get sign() {
+    return this.config.direction === "increase" ? -1 : 1;
+  }
+
+  // Sets thresholds from measured rest and fully-active angles
   // (e.g. from calibration or from classifier training samples).
   calibrate({ standingAngle, bottomAngle }) {
     const update = {};
     if (Number.isFinite(standingAngle)) update.standingAngle = standingAngle;
 
     if (Number.isFinite(standingAngle) && Number.isFinite(bottomAngle)) {
-      const range = standingAngle - bottomAngle;
+      const range = this.sign * (standingAngle - bottomAngle);
       if (range > 20) {
-        update.descentOffset = Math.max(10, range * 0.25);
-        update.returnOffset = Math.max(6, range * 0.15);
-        update.minRangeOfMotion = Math.max(25, range * 0.6);
+        update.descentOffset = Math.max(8, range * 0.25);
+        update.returnOffset = Math.max(5, range * 0.15);
+        update.minRangeOfMotion = Math.max(20, range * 0.6);
       }
     }
     this.configure(update);
   }
 
+  // Thresholds in the internal (mirrored) signal space
   get thresholds() {
     const c = this.config;
+    const rest = this.sign * c.standingAngle;
     return {
-      descent: c.standingAngle - c.descentOffset,
-      return: c.standingAngle - c.returnOffset,
-      countable: c.standingAngle - c.minRangeOfMotion,
+      rest,
+      descent: rest - c.descentOffset,
+      return: rest - c.returnOffset,
+      countable: rest - c.minRangeOfMotion,
     };
   }
 
-  // frame: { angle, timestamp, reliable, hipDrop, downProbability }
+  // frame: { angle, timestamp, reliable, hipDrop, activeProbability }
   update(frame) {
     const { angle, timestamp } = frame;
     const reliable = frame.reliable !== false && Number.isFinite(angle);
@@ -103,12 +118,13 @@ export class SquatRepCounter {
 
     this.lastReliableTime = timestamp;
     const t = this.thresholds;
+    const x = this.sign * angle;
 
     if (this.phase === Phase.STANDING) {
-      if (angle < t.descent) {
+      if (x < t.descent) {
         this.pendingFrames += 1;
         if (this.pendingFrames >= c.confirmFrames) {
-          this.startRep(frame);
+          this.startRep(x, timestamp);
         }
       } else {
         this.pendingFrames = 0;
@@ -117,21 +133,21 @@ export class SquatRepCounter {
     }
 
     if (this.current) {
-      this.track(frame);
+      this.track(x, frame);
 
       if (this.phase === Phase.DESCENDING) {
-        if (angle > this.current.minAngle + c.bottomHysteresis) {
+        if (x > this.current.minX + c.bottomHysteresis) {
           this.phase = Phase.ASCENDING;
-          this.current.peakAngle = angle;
+          this.current.peakX = x;
           this.current.peakTime = timestamp;
         }
       } else if (this.phase === Phase.ASCENDING) {
-        if (angle <= this.current.minAngle) {
+        if (x <= this.current.minX) {
           // Went deeper again: still the same rep
           this.phase = Phase.DESCENDING;
           this.pendingFrames = 0;
         } else {
-          event = this.checkRepEnd(frame);
+          event = this.checkRepEnd(x, timestamp);
         }
       }
     }
@@ -140,46 +156,46 @@ export class SquatRepCounter {
     return this.snapshot(event);
   }
 
-  startRep({ angle, timestamp }) {
+  startRep(x, timestamp) {
     this.phase = Phase.DESCENDING;
     this.pendingFrames = 0;
     this.current = {
       startTime: timestamp,
-      minAngle: angle,
+      minX: x,
       bottomTime: timestamp,
-      peakAngle: angle,
+      peakX: x,
       peakTime: timestamp,
       maxHipDrop: null,
-      maxDownProbability: null,
+      maxActiveProbability: null,
     };
   }
 
-  track({ angle, timestamp, hipDrop, downProbability }) {
+  track(x, { timestamp, hipDrop, activeProbability }) {
     const rep = this.current;
 
-    if (angle < rep.minAngle) {
-      rep.minAngle = angle;
+    if (x < rep.minX) {
+      rep.minX = x;
       rep.bottomTime = timestamp;
     }
     if (Number.isFinite(hipDrop)) {
       rep.maxHipDrop = Math.max(rep.maxHipDrop ?? -Infinity, hipDrop);
     }
-    if (Number.isFinite(downProbability)) {
-      rep.maxDownProbability = Math.max(rep.maxDownProbability ?? 0, downProbability);
+    if (Number.isFinite(activeProbability)) {
+      rep.maxActiveProbability = Math.max(rep.maxActiveProbability ?? 0, activeProbability);
     }
   }
 
-  checkRepEnd({ angle, timestamp }) {
+  checkRepEnd(x, timestamp) {
     const c = this.config;
     const t = this.thresholds;
     const rep = this.current;
 
-    if (angle > rep.peakAngle + 1) {
-      rep.peakAngle = angle;
+    if (x > rep.peakX + 1) {
+      rep.peakX = x;
       rep.peakTime = timestamp;
     }
 
-    if (angle >= t.return) {
+    if (x >= t.return) {
       this.pendingFrames += 1;
       if (this.pendingFrames >= c.confirmFrames) {
         return this.finishRep(timestamp);
@@ -188,16 +204,15 @@ export class SquatRepCounter {
     }
     this.pendingFrames = 0;
 
-    // The user stood up but never reached the return line, e.g. the standing
-    // angle was calibrated too high. Finish on a plateau near the top instead.
-    const nearTop = rep.peakAngle >= c.standingAngle - 2 * c.returnOffset;
+    // The user got back to rest but never reached the return line, e.g. the
+    // rest angle was calibrated too far out. Finish on a plateau instead.
+    const nearTop = rep.peakX >= t.rest - 2 * c.returnOffset;
     const plateaued = timestamp - rep.peakTime >= c.plateauMs;
-    const climbedMostOfTheWay =
-      rep.peakAngle - rep.minAngle >= 0.75 * (c.standingAngle - rep.minAngle);
+    const climbedMostOfTheWay = rep.peakX - rep.minX >= 0.75 * (t.rest - rep.minX);
 
     if (nearTop && plateaued && climbedMostOfTheWay) {
       const event = this.finishRep(timestamp);
-      this.config.standingAngle = rep.peakAngle + c.returnOffset / 2;
+      this.config.standingAngle = this.sign * (rep.peakX + c.returnOffset / 2);
       return event;
     }
     return null;
@@ -205,13 +220,15 @@ export class SquatRepCounter {
 
   finishRep(timestamp) {
     const c = this.config;
+    const t = this.thresholds;
     const rep = this.current;
     const durationMs = timestamp - rep.startTime;
-    const rangeOfMotion = c.standingAngle - rep.minAngle;
+    const rangeOfMotion = t.rest - rep.minX;
+    const reachedTarget = rep.minX <= this.sign * c.goodDepthAngle;
 
     let reason = null;
     if (rangeOfMotion < c.minRangeOfMotion) {
-      reason = "not deep enough";
+      reason = "not enough range of motion";
     } else if (durationMs < c.minRepMs) {
       reason = "too fast";
     } else if (durationMs > c.maxRepMs) {
@@ -220,18 +237,19 @@ export class SquatRepCounter {
       reason = "hips did not drop";
     } else if (
       c.requireClassifier &&
-      rep.maxDownProbability !== null &&
-      rep.maxDownProbability < c.minDownProbability
+      rep.maxActiveProbability !== null &&
+      rep.maxActiveProbability < c.minActiveProbability
     ) {
-      reason = "bottom position not recognised";
+      reason = "position not recognised";
     }
 
     const record = {
       index: reason ? null : this.reps + 1,
       counted: !reason,
       reason,
-      depthAngle: rep.minAngle,
-      depth: rep.minAngle <= c.goodDepthAngle ? "parallel" : "above parallel",
+      depthAngle: this.sign * rep.minX,
+      reachedTarget,
+      depth: c.depthLabels[reachedTarget ? 0 : 1],
       rangeOfMotion,
       durationMs,
       descentMs: rep.bottomTime - rep.startTime,
@@ -266,12 +284,13 @@ export class SquatRepCounter {
     c.standingAngle += c.standingAdaptRate * (angle - c.standingAngle);
   }
 
-  // 0 at standing, 1 at the counting depth. Useful for a progress bar.
+  // 0 at rest, 1 at the counting range. Useful for a progress bar.
   progress(angle) {
     const c = this.config;
     const range = c.minRangeOfMotion;
     if (!Number.isFinite(angle) || range <= 0) return 0;
-    return Math.min(1, Math.max(0, (c.standingAngle - angle) / range));
+    const moved = this.sign * (c.standingAngle - angle);
+    return Math.min(1, Math.max(0, moved / range));
   }
 
   snapshot(event) {
@@ -287,8 +306,11 @@ export class SquatRepCounter {
   }
 }
 
+// The counter started out squat-only; keep the old name working
+export const SquatRepCounter = RepCounter;
+
 // Backwards-compatible functional API using a shared counter
-const defaultCounter = new SquatRepCounter();
+const defaultCounter = new RepCounter();
 
 export function countSquatRep(angle) {
   return defaultCounter.update({ angle, timestamp: Date.now() });
