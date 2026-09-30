@@ -11,6 +11,8 @@
 //   inPosition  optional metrics -> bool; frames outside it are ignored
 //   counter     RepCounter config (direction, target angle, range, ...)
 //   rules       form rules for PostureAnalyzer
+//   met         energy cost (MET) used for calorie estimates
+//   secondsPerRep  typical tempo, used to estimate workout length
 
 import { SQUAT_RULES, jointsFor } from "./postureAnalyzer";
 
@@ -49,6 +51,8 @@ export const EXERCISES = [
     id: "squat",
     name: "Squat",
     kind: "reps",
+    met: 5.0,
+    secondsPerRep: 3,
     camera: "Front or side view, whole body in frame",
     instructions: "Feet shoulder-width apart. Sit back and down until your thighs are parallel, then stand tall.",
     parts: ["shoulder", "hip", "knee", "ankle"],
@@ -72,6 +76,8 @@ export const EXERCISES = [
     id: "pushup",
     name: "Push-up",
     kind: "reps",
+    met: 8.0,
+    secondsPerRep: 2.5,
     camera: "Side view, whole body in frame",
     instructions: "Hands under your shoulders, body in a straight line. Lower your chest until your elbows reach 90°, then push up.",
     parts: ["shoulder", "elbow", "wrist", "hip", "ankle"],
@@ -106,6 +112,8 @@ export const EXERCISES = [
     id: "lunge",
     name: "Lunge",
     kind: "reps",
+    met: 4.0,
+    secondsPerRep: 3,
     camera: "Side view, whole body in frame",
     instructions: "Step forward and lower until both knees are bent to about 90°, keeping your torso upright. Push back up.",
     parts: ["shoulder", "hip", "knee", "ankle"],
@@ -151,6 +159,8 @@ export const EXERCISES = [
     id: "curl",
     name: "Bicep curl",
     kind: "reps",
+    met: 3.5,
+    secondsPerRep: 3,
     camera: "Front or side view, upper body in frame",
     instructions: "Elbows pinned to your sides. Curl the weight up to your shoulders, then lower it all the way.",
     parts: ["shoulder", "elbow", "wrist", "hip"],
@@ -189,6 +199,8 @@ export const EXERCISES = [
     id: "press",
     name: "Shoulder press",
     kind: "reps",
+    met: 3.5,
+    secondsPerRep: 3,
     camera: "Front view, upper body in frame",
     instructions: "Start with your hands at shoulder height. Press straight up until your arms are straight, then lower back to your shoulders.",
     parts: ["shoulder", "elbow", "wrist", "hip"],
@@ -229,6 +241,8 @@ export const EXERCISES = [
     id: "lateral_raise",
     name: "Lateral raise",
     kind: "reps",
+    met: 3.5,
+    secondsPerRep: 3,
     camera: "Front view, upper body in frame",
     instructions: "Arms by your sides with a slight bend. Raise them out to shoulder height, then lower slowly.",
     parts: ["shoulder", "elbow", "wrist", "hip"],
@@ -281,6 +295,8 @@ export const EXERCISES = [
     id: "jumping_jack",
     name: "Jumping jack",
     kind: "reps",
+    met: 8.0,
+    secondsPerRep: 1.2,
     camera: "Front view, whole body in frame",
     instructions: "Jump your feet wide while raising your arms overhead, then jump back together.",
     parts: ["shoulder", "elbow", "wrist", "hip", "knee", "ankle"],
@@ -319,6 +335,8 @@ export const EXERCISES = [
     id: "glute_bridge",
     name: "Glute bridge",
     kind: "reps",
+    met: 3.5,
+    secondsPerRep: 3,
     camera: "Side view, lying on your back",
     instructions: "Lie on your back, knees bent, feet flat. Drive through your heels to lift your hips until your body is straight from shoulders to knees.",
     parts: ["shoulder", "hip", "knee", "ankle"],
@@ -362,6 +380,8 @@ export const EXERCISES = [
     id: "situp",
     name: "Sit-up",
     kind: "reps",
+    met: 5.0,
+    secondsPerRep: 2.5,
     camera: "Side view, lying on your back",
     instructions: "Lie on your back with knees bent. Curl up until your chest is near your knees, then lower with control.",
     parts: ["shoulder", "hip", "knee", "ankle"],
@@ -393,6 +413,7 @@ export const EXERCISES = [
     id: "plank",
     name: "Plank",
     kind: "hold",
+    met: 3.8,
     camera: "Side view, whole body in frame",
     instructions: "Forearms on the floor, elbows under your shoulders, body in a straight line from head to heels. Hold.",
     parts: ["shoulder", "elbow", "hip", "knee", "ankle"],
