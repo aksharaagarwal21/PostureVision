@@ -55,8 +55,12 @@ export function announce(events) {
 
       case "done": {
         const s = event.summary;
-        const reps = s.totalReps > 0 ? ` You did ${s.totalReps} reps` : "";
-        say(`Workout complete! Great job.${reps} and burned about ${Math.round(s.kcal)} calories.`);
+        const kcal = Math.round(s.kcal);
+        say(
+          s.totalReps > 0
+            ? `Workout complete! Great job. You did ${s.totalReps} reps and burned about ${kcal} calories.`
+            : `Workout complete! Great job. You burned about ${kcal} calories.`
+        );
         break;
       }
 

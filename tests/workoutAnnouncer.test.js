@@ -43,5 +43,8 @@ describe("workout announcements", () => {
   it("wraps up the workout", () => {
     const [done] = texts([{ type: "done", summary: { totalReps: 42, kcal: 61.4 } }]);
     expect(done).toBe("Workout complete! Great job. You did 42 reps and burned about 61 calories.");
+    expect(texts([{ type: "done", summary: { totalReps: 0, kcal: 12 } }])).toEqual([
+      "Workout complete! Great job. You burned about 12 calories.",
+    ]);
   });
 });
