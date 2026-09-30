@@ -164,6 +164,10 @@ input:focus-visible {
 .camera-error {
   position: absolute;
   inset: auto 12px 12px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 10px 12px;
   border-radius: 8px;
   background: rgba(239, 68, 68, 0.9);

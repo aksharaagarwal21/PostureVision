@@ -9,6 +9,24 @@ const VIDEO_CONSTRAINTS = {
   facingMode: "user",
 };
 
+const CAMERA_RETRIES = 4;
+const CAMERA_RETRY_MS = 800;
+
+function cameraErrorMessage(err) {
+  switch (err?.name) {
+    case "NotAllowedError":
+      return "Camera access was blocked. Allow camera access in your browser, then try again.";
+    case "NotReadableError":
+    case "AbortError":
+      return "The camera is being used by another app or browser tab. Close it (Zoom, Teams, Camera app, other PostureVision tabs), then try again.";
+    case "NotFoundError":
+    case "OverconstrainedError":
+      return "No camera was found. Plug in a webcam, then try again.";
+    default:
+      return err?.message || String(err);
+  }
+}
+
 // How often the React UI is updated (the canvas still renders every frame)
 const UI_UPDATE_MS = 100;
 
@@ -73,11 +91,18 @@ export default function WebcamView({ session, model = "full", mirrored = true, o
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const callbacks = useRef({ onFrame, onStatus });
+  const mirroredRef = useRef(mirrored);
   const [error, setError] = useState(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     callbacks.current = { onFrame, onStatus };
   }, [onFrame, onStatus]);
+
+  // Read on every frame, so toggling it doesn't restart the camera
+  useEffect(() => {
+    mirroredRef.current = mirrored;
+  }, [mirrored]);
 
   useEffect(() => {
     let cancelled = false;
@@ -101,6 +126,7 @@ export default function WebcamView({ session, model = "full", mirrored = true, o
           canvas.height = video.videoHeight;
         }
         const { width, height } = canvas;
+        const mirrored = mirroredRef.current;
 
         const now = performance.now();
         if (lastFrameTime !== null) {
@@ -136,31 +162,47 @@ export default function WebcamView({ session, model = "full", mirrored = true, o
       frameHandle = requestAnimationFrame(renderFrame);
     }
 
+    async function openCamera() {
+      // Windows can report the camera as busy for a moment after another
+      // stream on it was stopped, so retry a few times before giving up
+      for (let tries = 1; ; tries++) {
+        try {
+          return await navigator.mediaDevices.getUserMedia({ video: VIDEO_CONSTRAINTS, audio: false });
+        } catch (err) {
+          const busy = err?.name === "NotReadableError" || err?.name === "AbortError";
+          if (!busy || tries >= CAMERA_RETRIES || cancelled) throw err;
+          await new Promise((resolve) => setTimeout(resolve, CAMERA_RETRY_MS));
+        }
+      }
+    }
+
     async function start() {
       try {
         callbacks.current.onStatus?.("Starting camera…");
-        stream = await navigator.mediaDevices.getUserMedia({ video: VIDEO_CONSTRAINTS, audio: false });
-        if (cancelled) return;
+        const opened = await openCamera();
+        if (cancelled) {
+          // Cleanup already ran; release the camera we just opened
+          opened.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        stream = opened;
         video.srcObject = stream;
         await video.play();
 
         callbacks.current.onStatus?.("Loading pose model…");
-        detector = await createPoseDetector(model);
+        const created = await createPoseDetector(model);
         if (cancelled) {
-          detector.close();
+          created.close();
           return;
         }
+        detector = created;
 
         callbacks.current.onStatus?.(`Pose model: ${model} (${detector.delegate})`);
         setError(null);
         renderFrame();
       } catch (err) {
         if (cancelled) return;
-        const message =
-          err?.name === "NotAllowedError"
-            ? "Camera access was blocked. Allow camera access in your browser and reload."
-            : err?.message || String(err);
-        setError(message);
+        setError(cameraErrorMessage(err));
         callbacks.current.onStatus?.("Error");
       }
     }
@@ -172,14 +214,20 @@ export default function WebcamView({ session, model = "full", mirrored = true, o
       if (frameHandle) cancelAnimationFrame(frameHandle);
       detector?.close();
       stream?.getTracks().forEach((track) => track.stop());
+      video.srcObject = null;
     };
-  }, [model, mirrored, session]);
+  }, [model, session, attempt]);
 
   return (
     <div className="camera">
       <video ref={videoRef} playsInline muted className="camera-video" />
       <canvas ref={canvasRef} width={1280} height={720} className="camera-canvas" />
-      {error && <div className="camera-error">{error}</div>}
+      {error && (
+        <div className="camera-error">
+          <span>{error}</span>
+          <button onClick={() => { setError(null); setAttempt((n) => n + 1); }}>Try again</button>
+        </div>
+      )}
     </div>
   );
 }
