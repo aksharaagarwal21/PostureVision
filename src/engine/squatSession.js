@@ -6,7 +6,7 @@
 
 import { OneEuroFilter, EmaDict } from "./filters";
 import { computeSquatMetrics, SquatPostureAnalyzer, reviewRep } from "./postureAnalyzer";
-import { SquatRepCounter, Phase } from "./repCounter";
+import { SquatRepCounter, Phase, DEFAULT_REP_CONFIG } from "./repCounter";
 import { PoseClassifier } from "./poseClassifier";
 
 export const Status = {
@@ -60,6 +60,15 @@ export class SquatSession {
   recalibrate() {
     this.calibrationBuffer = [];
     this.baseline = null;
+  }
+
+  // Forget the trained model and go back to the default rep thresholds
+  clearTraining() {
+    this.classifier.clear();
+    this.requireClassifier = false;
+    this.counter.config = { ...DEFAULT_REP_CONFIG };
+    this.probabilitySmoother.reset();
+    this.recalibrate();
   }
 
   setRequireClassifier(value) {

@@ -1,10 +1,15 @@
-import WebcamView from "./components/WebcamView";
+import WorkoutView from "./components/WorkoutView";
 
 function App() {
   return (
-    <div>
-      <h1>FitCam</h1>
-      <WebcamView />
+    <div className="app">
+      <header className="app-header">
+        <h1>PostureVision</h1>
+        <p className="muted">Real-time squat coach · runs entirely in your browser</p>
+      </header>
+      <main>
+        <WorkoutView />
+      </main>
     </div>
   );
 }
