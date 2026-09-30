@@ -185,13 +185,30 @@ export function computeSquatMetrics(landmarks, world = null) {
 
 const PENALTY = { error: 25, warning: 12, info: 0 };
 
+// Landmark indices for body parts: only the near side in side view
+export function jointsFor(metrics, parts) {
+  if (!metrics) return [];
+  const sides = metrics.view === View.SIDE ? [metrics.nearSide] : ["left", "right"];
+  const out = [];
+  for (const side of sides) {
+    for (const part of parts) {
+      const index = SIDES[side][part];
+      if (index !== undefined) out.push(index);
+    }
+  }
+  return out;
+}
+
 // Each rule returns true when the fault is present. `inRep` is true while the
-// user is descending or ascending.
-const RULES = [
+// user is moving through a rep. `joints` are marked on the video and `voice`
+// is the short phrase the voice coach says.
+export const SQUAT_RULES = [
   {
     id: "torso_lean",
     severity: "error",
     message: "Keep your chest up: your torso is leaning too far forward",
+    voice: "Chest up",
+    joints: (m) => jointsFor(m, ["shoulder", "hip"]),
     when: ({ m, inRep }) =>
       inRep &&
       Number.isFinite(m.torsoLean) &&
@@ -202,30 +219,40 @@ const RULES = [
     id: "knees_forward",
     severity: "warning",
     message: "Knees are drifting far past your toes: sit your hips back",
+    voice: "Sit your hips back",
+    joints: (m) => jointsFor(m, ["knee", "foot"]),
     when: ({ m, inRep }) => inRep && m.kneeForward > 0.35,
   },
   {
     id: "knee_valgus",
     severity: "error",
     message: "Knees caving in: push them out over your toes",
+    voice: "Push your knees out",
+    joints: (m) => jointsFor(m, ["knee"]),
     when: ({ m, inRep }) => inRep && m.kneeAngle < 150 && m.kneeWidthRatio < 0.8,
   },
   {
     id: "asymmetry",
     severity: "warning",
     message: "Uneven squat: keep your weight even on both legs",
+    voice: "Keep your weight even",
+    joints: (m) => jointsFor(m, ["knee"]),
     when: ({ m, inRep }) => inRep && m.kneeAsymmetry > 15,
   },
   {
     id: "hip_shift",
     severity: "warning",
     message: "Hips tilting to one side: keep them level",
+    voice: "Keep your hips level",
+    joints: (m) => jointsFor(m, ["hip"]),
     when: ({ m, inRep }) => inRep && Math.abs(m.hipTilt) > 7,
   },
   {
     id: "heel_lift",
     severity: "warning",
     message: "Keep your heels on the floor",
+    voice: "Heels down",
+    joints: (m) => jointsFor(m, ["heel", "ankle"]),
     when: ({ m, inRep, baseline }) =>
       inRep &&
       Number.isFinite(baseline.heelRise) &&
@@ -235,19 +262,24 @@ const RULES = [
     id: "stance_narrow",
     severity: "info",
     message: "Widen your stance to about shoulder width",
+    voice: "Widen your stance",
+    joints: (m) => jointsFor(m, ["ankle"]),
     when: ({ m, inRep }) => !inRep && m.stanceRatio < 0.7,
   },
   {
     id: "stance_wide",
     severity: "info",
     message: "Your stance is very wide: bring your feet in a little",
+    voice: "Bring your feet in",
+    joints: (m) => jointsFor(m, ["ankle"]),
     when: ({ m, inRep }) => !inRep && m.stanceRatio > 2.2,
   },
 ];
 
-export class SquatPostureAnalyzer {
-  constructor() {
-    this.flags = Object.fromEntries(RULES.map((r) => [r.id, new StableFlag(4, 8)]));
+export class PostureAnalyzer {
+  constructor(rules = SQUAT_RULES) {
+    this.rules = rules;
+    this.flags = Object.fromEntries(rules.map((r) => [r.id, new StableFlag(4, 8)]));
     this.reset();
   }
 
@@ -257,27 +289,30 @@ export class SquatPostureAnalyzer {
     this.score = 100;
   }
 
-  // Remember what "standing tall" looks like for this user
-  calibrate(standingMetrics) {
-    this.baseline = {
-      heelRise: standingMetrics.heelRise,
-      torsoLean: standingMetrics.torsoLean,
-      kneeAngle: standingMetrics.kneeAngle,
-    };
+  // Remember what the rest position looks like for this user
+  calibrate(restMetrics) {
+    this.baseline = { ...restMetrics };
   }
 
-  analyze(metrics, { inRep = false } = {}) {
-    if (!metrics || !metrics.bodyVisible) {
-      return { issues: [], score: this.score, reliable: false };
+  // reliable defaults to the squat's own visibility check
+  analyze(metrics, { inRep = false, reliable = metrics?.bodyVisible } = {}) {
+    if (!metrics || !reliable) {
+      return { issues: [], score: Math.round(this.score), frameScore: null, reliable: false };
     }
 
     const ctx = { m: metrics, inRep, baseline: this.baseline };
     const issues = [];
 
-    for (const rule of RULES) {
+    for (const rule of this.rules) {
       const active = this.flags[rule.id].update(Boolean(rule.when(ctx)));
       if (active) {
-        issues.push({ id: rule.id, severity: rule.severity, message: rule.message });
+        issues.push({
+          id: rule.id,
+          severity: rule.severity,
+          message: rule.message,
+          voice: rule.voice ?? rule.message,
+          joints: rule.joints ? rule.joints(metrics) : [],
+        });
       }
     }
 
@@ -289,19 +324,30 @@ export class SquatPostureAnalyzer {
   }
 }
 
+export class SquatPostureAnalyzer extends PostureAnalyzer {
+  constructor() {
+    super(SQUAT_RULES);
+  }
+}
+
 // Feedback about a finished rep, based on the rep counter's record
-export function reviewRep(rep, { avgFormScore = 100 } = {}) {
+export function reviewRep(rep, {
+  avgFormScore = 100,
+  targetMessage = "Go deeper: aim for thighs parallel to the floor",
+  slowRepMs = 1000,
+} = {}) {
+  const reachedTarget = rep.reachedTarget ?? rep.depth === "parallel";
   const cues = [];
   if (!rep.counted) {
     cues.push({ severity: "warning", message: `Rep not counted: ${rep.reason}` });
-  } else if (rep.depth !== "parallel") {
-    cues.push({ severity: "warning", message: "Go deeper: aim for thighs parallel to the floor" });
+  } else if (!reachedTarget) {
+    cues.push({ severity: "warning", message: targetMessage });
   }
-  if (rep.counted && rep.durationMs < 1000) {
-    cues.push({ severity: "info", message: "Slow down and control the descent" });
+  if (rep.counted && rep.durationMs < slowRepMs) {
+    cues.push({ severity: "info", message: "Slow down and control the movement" });
   }
 
-  const depthPenalty = rep.depth === "parallel" ? 0 : 15;
+  const depthPenalty = reachedTarget ? 0 : 15;
   const score = rep.counted ? Math.max(0, Math.round(avgFormScore - depthPenalty)) : 0;
   if (rep.counted && cues.length === 0 && score >= 85) {
     cues.push({ severity: "good", message: "Great rep!" });
@@ -314,7 +360,7 @@ export function analyzeSquatPosture(landmarks, world = null) {
   const m = computeSquatMetrics(landmarks, world);
   if (!m) return [];
   const ctx = { m, inRep: m.kneeAngle < 160, baseline: {} };
-  const feedback = RULES.filter((r) => r.when(ctx)).map((r) => r.message);
+  const feedback = SQUAT_RULES.filter((r) => r.when(ctx)).map((r) => r.message);
   if (Number.isFinite(m.hipBelowKnee)) {
     feedback.push(m.hipBelowKnee > 0 ? "Good squat depth" : "Go lower");
   }

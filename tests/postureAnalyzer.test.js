@@ -69,6 +69,17 @@ describe("SquatPostureAnalyzer", () => {
     expect(issuesFor(synthPose(0.9, { yaw: 0, valgus: 1.3 }))).toContain("knee_valgus");
   });
 
+  it("reports which joints to mark for a mistake", () => {
+    const analyzer = new SquatPostureAnalyzer();
+    const pose = synthPose(0.9, { yaw: 0, valgus: 1.3 });
+    const m = computeSquatMetrics(pose.landmarks, pose.world);
+    let result;
+    for (let i = 0; i < 6; i++) result = analyzer.analyze(m, { inRep: true });
+    const valgus = result.issues.find((i) => i.id === "knee_valgus");
+    expect(valgus.joints).toEqual([25, 26]);
+    expect(valgus.voice).toBe("Push your knees out");
+  });
+
   it("flags heels lifting in side view", () => {
     const analyzer = new SquatPostureAnalyzer();
     analyzer.calibrate(computeSquatMetrics(synthPose(0, { yaw: 90 }).landmarks));

@@ -10,7 +10,7 @@ import {
   distance,
   visibilityOf,
 } from "./angleUtils";
-import { computeSquatMetrics, View } from "./postureAnalyzer";
+import { computeSquatMetrics, jointsFor, View } from "./postureAnalyzer";
 import { LM, SIDES } from "./landmarks";
 
 const MIN_VISIBILITY = 0.5;
@@ -142,20 +142,6 @@ export function computePoseMetrics(landmarks, world = null) {
   };
 }
 
-// Landmark indices for body parts: only the near side in side view
-export function jointsFor(metrics, parts) {
-  if (!metrics) return [];
-  const sides = metrics.view === View.SIDE ? [metrics.nearSide] : ["left", "right"];
-  const out = [];
-  for (const side of sides) {
-    for (const part of parts) {
-      const index = SIDES[side][part];
-      if (index !== undefined) out.push(index);
-    }
-  }
-  return out;
-}
-
 // Are all the listed body parts clearly visible and inside the frame?
 export function partsVisible(landmarks, metrics, parts) {
   return jointsFor(metrics, parts).every((i) => {
@@ -168,3 +154,4 @@ export function partsVisible(landmarks, metrics, parts) {
   });
 }
 
+export { jointsFor };
