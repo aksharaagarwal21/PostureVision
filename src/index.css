@@ -960,3 +960,12 @@ input[type="number"] {
 .workout-entry-body {
   padding: 0 12px 12px;
 }
+
+/* On phones the video is too short to hold the break card, so show it below */
+@media (max-width: 640px) {
+  .break-overlay {
+    position: static;
+    margin-top: 8px;
+    background: #0b1120;
+  }
+}
