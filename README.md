@@ -1,6 +1,6 @@
 # PostureVision
 
-A browser app that watches you work out through the webcam, counts your reps, checks your form and coaches you out loud.
+A browser app that plans and guides your workouts. It watches you through the webcam, counts your reps, checks your form, times your sets and rest breaks, and coaches you out loud.
 
 Everything runs in the browser; no video is uploaded.
 
@@ -21,7 +21,12 @@ Everything runs in the browser; no video is uploaded.
 
 ## Features
 
-- **Voice coach**: says the rep count with a verdict on every rep ("5. Good rep", "6. Go deeper", "7. Chest up"). It also calls out form mistakes as they happen, helps you get into position, marks every 5 reps, and counts out plank holds. It's on by default and can be switched off.
+- **Your own workout plan**: pick exercises and set the number of sets, the reps or seconds per set, the rest between sets and the rest between exercises. You can also start from a template (beginner full body, upper body, lower body, core and cardio). Plans can be saved, and the planner shows the estimated time and calories.
+- **Guided workouts**: a get-ready countdown, a live set target ("7 / 12 reps" or a countdown for timed sets) and automatic moves to the next set when you hit your target. Rest breaks get a big countdown, a preview of what's next with its demo and steps, and **+20 s** / **Skip rest** buttons. You can pause, skip an exercise or end early.
+- **Performance records**: reps, form score, time and approximate calories for every set, saved to your history. The history page shows totals, workouts this week, your day streak and personal bests.
+- **Calorie estimate**: MET × body weight × time, using values from the Compendium of Physical Activities. It's an approximation.
+- **Exercise guides**: every exercise has an animated demo, numbered steps each with a picture, the muscles worked and form tips. The pictures and animations are drawn by the app from a built-in figure model; no photos are downloaded.
+- **Voice coach**: announces each set, the last three seconds of countdowns, rest breaks and what's next. During a set it says the rep count with a verdict on every rep ("5. Good rep", "6. Go deeper", "7. Chest up"). It also calls out form mistakes as they happen, helps you get into position, marks every 5 reps, and counts out plank holds. It's on by default and can be switched off.
 - **Red mistake marks**: the joints involved in a mistake get a pulsing red ring, the body segment between them turns red, and a red banner on the video tells you how to fix it.
 - **Pose tracking**: MediaPipe Tasks PoseLandmarker (lite, full or heavy model), GPU accelerated with a CPU fallback. Its 3D world landmarks mean joint angles are correct whether you face the camera, stand side-on or anything in between.
 - **Rep counting**: a calibrated state machine with hysteresis that works for movements where the angle closes (squat, curl) and where it opens (raise, press, bridge). A bounce at the turning point counts once. Half reps, too-fast reps and noise are rejected. Depth and timing are recorded for every rep.
@@ -43,12 +48,19 @@ Open the local URL in Chrome or Edge and allow camera access.
 
 ## How to use
 
-1. **Pick an exercise** at the top. The instructions and the best camera angle are shown below the buttons.
-2. **Get into the start position** and hold still for about a second while it calibrates.
-3. **Start moving.** Reps, form score and feedback update live, and the voice coach tells you how each rep went.
-4. **Train (optional)**: in *Train on your body*, record the start position and the end position (4 seconds each, after a 3-second countdown). Press **Test accuracy** to see the model's leave-one-out accuracy.
+**Guided workout (My workout tab)**
 
-Pick the **Heavy** model for maximum accuracy on a fast machine, or **Lite** on slower laptops and phones.
+1. Enter your body weight (only used for calorie estimates) and pick a template, or build your own plan.
+2. For each exercise, set the sets, reps or seconds per set, and the rest between sets. Set the rest between exercises at the bottom.
+3. Press **Start workout**. Get into position during the countdown; the voice tells you when to go.
+4. Do your reps. The set ends by itself when you hit the target (or press **Finish set**). Rest, then carry on.
+5. At the end you get a summary, and the workout is saved to **History**.
+
+**Free practice**
+
+Pick any exercise and train without a plan. Press **How to do it** for the demo and steps. You can also record your own start and end positions in *Train on your body* so the app learns your body and camera setup.
+
+Pick the **Heavy** tracking model for maximum accuracy on a fast machine, or **Lite** on slower laptops and phones.
 
 ## How it works
 
@@ -65,11 +77,24 @@ camera frame
           └─ PoseClassifier       optional k-NN model trained by the user
       └─ VoiceCoach (src/engine/voiceCoach.js)       spoken feedback
       └─ overlay.js                                  skeleton and red marks
+
+workout plan (src/engine/workoutPlan.js)
+  └─ WorkoutRunner (src/engine/workoutRunner.js)     sets, rests, timers, results
+      ├─ workoutAnnouncer.js                         spoken set and rest cues
+      ├─ calories.js                                 MET-based estimate
+      └─ history.js                                  saved workouts and bests
 ```
 
 | File | Purpose |
 | --- | --- |
-| `src/engine/exercises.js` | The 10 exercises: signals, targets, form rules, voice cues |
+| `src/engine/exercises.js` | The 10 exercises: signals, targets, form rules, voice cues, MET |
+| `src/engine/workoutPlan.js` | Plans, templates, time and calorie estimates |
+| `src/engine/workoutRunner.js` | Runs a plan: countdowns, sets, rests, results |
+| `src/engine/workoutAnnouncer.js` | What the voice says during a guided workout |
+| `src/engine/calories.js` | Calorie estimate |
+| `src/engine/history.js` | Workout history, profile, saved plans, personal bests |
+| `src/demo/` | Demo figure poses and drawing |
+| `src/content/exerciseGuides.js` | Step-by-step instructions and tips |
 | `src/engine/workoutSession.js` | Pipeline for one workout session |
 | `src/engine/repCounter.js` | Rep state machine and validation |
 | `src/engine/postureAnalyzer.js` | Leg and torso metrics, form rules, form score |
@@ -94,3 +119,4 @@ The tests use `tests/synthetic.js` to generate realistic body landmarks from any
 - how accurately joint angles are measured
 - classifier accuracy
 - what the voice coach says
+- plans, the workout runner (sets, rests, pause, skip), calories and history
