@@ -10,6 +10,7 @@
   --error: #ef4444;
   --button: #1e293b;
   --button-hover: #273449;
+  --demo-far: #475569;
 
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   line-height: 1.5;
@@ -29,6 +30,7 @@
     --accent: #0284c7;
     --button: #e2e8f0;
     --button-hover: #cbd5e1;
+    --demo-far: #94a3b8;
     color-scheme: light;
   }
 }
@@ -417,4 +419,48 @@ input:focus-visible {
 
 .picker-instructions {
   margin: 10px 0 2px;
+}
+
+/* Exercise guide */
+
+.demo-figure {
+  display: block;
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+.guide-demo {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.guide-muscles {
+  margin: 0 0 4px;
+}
+
+.guide-steps {
+  list-style: none;
+  padding: 0;
+  margin: 14px 0 0;
+  display: grid;
+  gap: 8px;
+}
+
+.guide-step {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.guide-step .demo-figure {
+  flex-shrink: 0;
+}
+
+.guide-tips {
+  margin: 12px 0 0;
+  padding-left: 1.2em;
+  color: var(--muted);
+  font-size: 0.9rem;
 }
